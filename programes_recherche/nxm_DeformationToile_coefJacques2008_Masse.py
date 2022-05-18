@@ -17,6 +17,47 @@ n=15
 m=9
 Nb_ressorts=2*n*m+n+m #nombre de ressorts total dans le modele
 
+#cette premiere fonction nest pas frocement utile:
+def Spring_bouts_ver(Pt,Pt_ancrage):
+    # Definition des ressorts (position, taille)
+    Spring_bout_1 = []
+
+    # RESSORTS ENTRE LE CADRE ET LA TOILE
+    for i in range(0, 2 * m + 2 * n):
+        Spring_bout_1 = cas.vertcat(Spring_bout_1, Pt_ancrage[:, i])
+
+    # RESSORTS HORIZONTAUX : il y en a n*(m-1)
+    for i in range(n * (m - 1)):
+        Spring_bout_1 = cas.vertcat(Spring_bout_1, Pt[:, i])
+
+    # RESSORTS VERTICAUX : il y en a m*(n-1)
+    for i in range(n - 1):
+        for j in range(m):
+            Spring_bout_1 = cas.vertcat(Spring_bout_1, Pt[:, i + n * j])
+
+    Spring_bout_2 = []
+
+    # RESSORTS ENTRE LE CADRE ET LA TOILE
+    for i in range(0, n):
+        Spring_bout_2 = cas.vertcat(Spring_bout_2, Pt[:, i])  # points droite du bord de la toile
+    for i in range(n - 1, m * n, n):
+        Spring_bout_2 = cas.vertcat(Spring_bout_2, Pt[:, i])  # points hauts du bord de la toile
+    for i in range(n * (m - 1), m * n):
+        Spring_bout_2 = cas.vertcat(Spring_bout_2, Pt[:, i])  # points gauche du bord de la toile
+    for i in range(n * (m - 1), -1, -n):
+        Spring_bout_2 = cas.vertcat(Spring_bout_2, Pt[:, i])  # points bas du bord de la toile
+
+    # RESSORTS HORIZONTAUX : il y en a n*(m-1)
+    for i in range(n, n * m):
+        Spring_bout_2 = cas.vertcat(Spring_bout_2, Pt[:, i])
+
+    # RESSORTS VERTICAUX : il y en a m*(n-1)
+    for i in range(1, n):
+        for j in range(m):
+            Spring_bout_2 = cas.vertcat(Spring_bout_2, Pt[:, i + n * j])
+
+    return (Spring_bout_1,Spring_bout_2)
+
 
 def Spring_bouts(Pt,Pt_ancrage):
     # Definition des ressorts (position, taille)
@@ -330,8 +371,8 @@ def Force_calc(Masse_centre):
 
     Pt = Optimisation_toile(Masse_centre, Pt_ancrage, k, M, l_repos, Pos_repos)
 
-    Spring_bout_1,Spring_bout_2=Spring_bouts(Pt,Pt_ancrage)
-    Spring_bout_1, Spring_bout_2 = np.vstack(Spring_bout_1),np.vstack(Spring_bout_2)
+    Spring_bout_1,Spring_bout_2=Spring_bouts_ver(Pt,Pt_ancrage)
+    # Spring_bout_1, Spring_bout_2 = np.vstack(Spring_bout_1),np.vstack(Spring_bout_2)
 
 
     Vect_unit_dir_F = (Spring_bout_2 - Spring_bout_1) / np.linalg.norm(Spring_bout_2 - Spring_bout_1)
