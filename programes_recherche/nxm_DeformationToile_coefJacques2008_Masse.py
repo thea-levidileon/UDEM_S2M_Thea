@@ -12,51 +12,11 @@ import matplotlib.pyplot as plt
 # from os.path import dirname, join as pjoin
 # import scipy.io as sio
 from IPython import embed
+from mpl_toolkits import mplot3d
 
 n=15
 m=9
 Nb_ressorts=2*n*m+n+m #nombre de ressorts total dans le modele
-
-#cette premiere fonction nest pas frocement utile:
-def Spring_bouts_ver(Pt,Pt_ancrage):
-    # Definition des ressorts (position, taille)
-    Spring_bout_1 = []
-
-    # RESSORTS ENTRE LE CADRE ET LA TOILE
-    for i in range(0, 2 * m + 2 * n):
-        Spring_bout_1 = cas.vertcat(Spring_bout_1, Pt_ancrage[:, i])
-
-    # RESSORTS HORIZONTAUX : il y en a n*(m-1)
-    for i in range(n * (m - 1)):
-        Spring_bout_1 = cas.vertcat(Spring_bout_1, Pt[:, i])
-
-    # RESSORTS VERTICAUX : il y en a m*(n-1)
-    for i in range(n - 1):
-        for j in range(m):
-            Spring_bout_1 = cas.vertcat(Spring_bout_1, Pt[:, i + n * j])
-
-    Spring_bout_2 = []
-
-    # RESSORTS ENTRE LE CADRE ET LA TOILE
-    for i in range(0, n):
-        Spring_bout_2 = cas.vertcat(Spring_bout_2, Pt[:, i])  # points droite du bord de la toile
-    for i in range(n - 1, m * n, n):
-        Spring_bout_2 = cas.vertcat(Spring_bout_2, Pt[:, i])  # points hauts du bord de la toile
-    for i in range(n * (m - 1), m * n):
-        Spring_bout_2 = cas.vertcat(Spring_bout_2, Pt[:, i])  # points gauche du bord de la toile
-    for i in range(n * (m - 1), -1, -n):
-        Spring_bout_2 = cas.vertcat(Spring_bout_2, Pt[:, i])  # points bas du bord de la toile
-
-    # RESSORTS HORIZONTAUX : il y en a n*(m-1)
-    for i in range(n, n * m):
-        Spring_bout_2 = cas.vertcat(Spring_bout_2, Pt[:, i])
-
-    # RESSORTS VERTICAUX : il y en a m*(n-1)
-    for i in range(1, n):
-        for j in range(m):
-            Spring_bout_2 = cas.vertcat(Spring_bout_2, Pt[:, i + n * j])
-
-    return (Spring_bout_1,Spring_bout_2)
 
 
 def Spring_bouts(Pt,Pt_ancrage):
@@ -83,7 +43,7 @@ def Spring_bouts(Pt,Pt_ancrage):
         Spring_bout_2 = cas.horzcat(Spring_bout_2, Pt[:, i])  # points droite du bord de la toile
     for i in range(n - 1, m * n, n):
         Spring_bout_2 = cas.horzcat(Spring_bout_2, Pt[:, i])  # points hauts du bord de la toile
-    for i in range(n * (m - 1), m * n):
+    for i in range(m*n-1,n * (m - 1)-1, -1):
         Spring_bout_2 = cas.horzcat(Spring_bout_2, Pt[:, i])  # points gauche du bord de la toile
     for i in range(n * (m - 1), -1, -n):
         Spring_bout_2 = cas.horzcat(Spring_bout_2, Pt[:, i])  # points bas du bord de la toile
@@ -131,16 +91,6 @@ def ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre):
 
     k_4 = k[2*(n+m)+(m*n-1)/2-n, 2*(n+m) + n*(m-1)+m*(n-1)/2+(m-1)/2, 2*(n+m)+(m*n-1)/2, 2*(n+m) + n*(m-1) + m*((n-1)/2-1)+(m-1)/2]
     l_repos_4 = l_repos[2*(n+m)+(m*n-1)/2-n, 2*(n+m) + n*(m-1)+m*(n-1)/2+(m-1)/2, 2*(n+m)+(m*n-1)/2, 2*(n+m) + n*(m-1) + m*((n-1)/2-1)+(m-1)/2]
-
-    # Pt_centre = np.zeros((3, 5))
-    # Pt_centre[:, 0] = Pt[:, int((m * n - 1) / 2)]
-    # Pt_centre[:, 1] = Pt[:, int((m * n - 1) / 2 - n)]
-    # Pt_centre[:, 2] = Pt[:, int((m * n - 1) / 2 + 1)]
-    # Pt_centre[:, 3] = Pt[:, int((m * n - 1) / 2 + n)]
-    # Pt_centre[:, 4] = Pt[:, int((m * n - 1) / 2 - 1)]
-    #
-    # Spring_bout_1 = cas.horzcat(Pt_centre[:, 1], Pt_centre[:, 2], Pt_centre[:, 3], Pt_centre[:, 4])
-    # Spring_bout_2 = cas.horzcat(Pt_centre[:, 0], Pt_centre[:, 0], Pt_centre[:, 0], Pt_centre[:, 0])
 
     Spring_bout_1 = cas.horzcat(Pt[:, int((m * n - 1) / 2 - n)], Pt[:, int((m * n - 1) / 2 + 1)], Pt[:, int((m * n - 1) / 2 + n)], Pt[:, int((m * n - 1) / 2 - 1)])
     Spring_bout_2 = cas.horzcat(Pt[:, int((m * n - 1) / 2)], Pt[:, int((m * n - 1) / 2)], Pt[:, int((m * n - 1) / 2)], Pt[:, int((m * n - 1) / 2)])
@@ -190,7 +140,7 @@ def Force_calc(Masse_centre):
         L_const = L_const_func(Pt, Pt_ancrage)
 
         w = [] #vecteur de variables
-        w0 = [] #coditions initiales
+        w0 = [] #conditions initiales
         lbw = []
         ubw = []
         g = [] #contraintes
@@ -222,22 +172,6 @@ def Force_calc(Masse_centre):
         # lbg += [np.zeros(38)]
         # ubg += [np.ones(38)*10]
 
-        # Eq_Obj = cas.sum1((F_spring[:, 0] + F_spring[:, 6] + F_spring[:, 11] + F_spring[:, 5] + F_masses[:, 0]) ** 2 + \
-        #          (F_spring[:, 1] + F_spring[:, 7] + F_spring[:, 12] + F_spring[:, 6] + F_masses[:, 1]) ** 2 + \
-        #          (F_spring[:, 2] + F_spring[:, 8] + F_spring[:, 13] + F_spring[:, 7] + F_masses[:, 2]) ** 2 + \
-        #          (F_spring[:, 3] + F_spring[:, 9] + F_spring[:, 14] + F_spring[:, 8] + F_masses[:, 3]) ** 2 + \
-        #          (F_spring[:, 4] + F_spring[:, 10] + F_spring[:, 15] + F_spring[:, 9] + F_masses[:, 4]) ** 2 + \
-        #          (F_spring[:, 11] + F_spring[:, 17] + F_spring[:, 22] + F_spring[:, 16] + F_masses[:, 5]) ** 2 + \
-        #          (F_spring[:, 12] + F_spring[:, 18] + F_spring[:, 23] + F_spring[:, 17] + F_masses[:, 6]) ** 2 + \
-        #          (F_spring[:, 13] + F_spring[:, 19] + F_spring[:, 24] + F_spring[:, 18] + F_masses[:, 7]) ** 2 + \
-        #          (F_spring[:, 14] + F_spring[:, 20] + F_spring[:, 25] + F_spring[:, 19] + F_masses[:, 8]) ** 2 + \
-        #          (F_spring[:, 15] + F_spring[:, 21] + F_spring[:, 26] + F_spring[:, 20] + F_masses[:, 9]) ** 2 + \
-        #          (F_spring[:, 22] + F_spring[:, 28] + F_spring[:, 33] + F_spring[:, 27] + F_masses[:, 10]) ** 2 + \
-        #          (F_spring[:, 23] + F_spring[:, 29] + F_spring[:, 34] + F_spring[:, 28] + F_masses[:, 11]) ** 2 + \
-        #          (F_spring[:, 24] + F_spring[:, 30] + F_spring[:, 35] + F_spring[:, 29] + F_masses[:, 12]) ** 2 + \
-        #          (F_spring[:, 25] + F_spring[:, 31] + F_spring[:, 36] + F_spring[:, 30] + F_masses[:, 13]) ** 2 + \
-        #          (F_spring[:, 26] + F_spring[:, 32] + F_spring[:, 37] + F_spring[:, 31] + F_masses[:, 14]) ** 2)
-
         obj = Energie(Pt_post) # + Eq_Obj
 
         # prob = {'f': obj, 'x': cas.vertcat(*w), 'g': cas.vertcat(*g)}
@@ -266,8 +200,7 @@ def Force_calc(Masse_centre):
 
         return Pt
 
-
-    # PLT_FLAG = True  #False  #
+##################################################################################################################
 
     L = 2.134
     L_ressort = 0.35
@@ -307,8 +240,8 @@ def Force_calc(Masse_centre):
     k8 = 2 * k7
 
     # longueurs au repos trouvees a partir du programme 5x3:
-    l_bord = 0.240
-    l_coin = 0.240
+    l_bord = 0.240-0.045233
+    l_coin = 0.240-0.100254
     l_vertical = 4 * 1.052 / (n - 1)
     l_horizontal = 2 * 1.0525 / (m - 1)
 
@@ -366,51 +299,128 @@ def Force_calc(Masse_centre):
     M[2 * n - 1:n * m - 1:n] = mpetit  # masses du cote haut
     M[1:n - 1] = mgrand  # masse du cote droit
     M[n * (m - 1) + 1:n * m - 1] = mgrand  # masse du cote gauche
+    M[int((m*n-1)/2)]+=Masse_centre
 
-    Spring_bout_1_repos,Spring_bout_2_repos=Spring_bouts(Pos_repos, Pt_ancrage)
+    ###################################################################################################################
 
     Pt = Optimisation_toile(Masse_centre, Pt_ancrage, k, M, l_repos, Pos_repos)
 
-    Spring_bout_1,Spring_bout_2=Spring_bouts_ver(Pt,Pt_ancrage)
-    # Spring_bout_1, Spring_bout_2 = np.vstack(Spring_bout_1),np.vstack(Spring_bout_2)
+    Spring_bout_1, Spring_bout_2 = Spring_bouts(Pt, Pt_ancrage)
+    Spring_bout_1, Spring_bout_2 = Spring_bout_1.T,Spring_bout_2.T
 
+    Spring_bout_1_repos,Spring_bout_2_repos=Spring_bouts(Pos_repos, Pt_ancrage)
+    Spring_bout_1_repos,Spring_bout_2_repos=Spring_bout_1_repos.T,Spring_bout_2_repos.T
 
     Vect_unit_dir_F = (Spring_bout_2 - Spring_bout_1) / np.linalg.norm(Spring_bout_2 - Spring_bout_1)
     F_spring = np.zeros((3, Nb_ressorts))
     for ispring in range(Nb_ressorts):
         F_spring[:, ispring] = Vect_unit_dir_F[ispring, :] * k[ispring] * (
                 np.linalg.norm(Spring_bout_2[ispring, :] - Spring_bout_1[ispring, :]) - l_repos[ispring])
+
+
+   #AFFICHAGE :
+
     PLT_FLAG=1
-    if PLT_FLAG: #trampoline au repos
+    if PLT_FLAG:
+
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
+        ax.set_box_aspect([1.1, 1.8, 1])
         ax.plot(Pos_repos[0, :], Pos_repos[1, :], Pos_repos[2, :], '.b')
         ax.plot(Pt_ancrage[0, :], Pt_ancrage[1, :], Pt_ancrage[2, :], '.k')
-        for j in range(38):
-            ax.plot(np.array([Spring_bout_1_repos[j, 0], Spring_bout_2_repos[j, 0]]), np.array([Spring_bout_1_repos[j, 1], Spring_bout_2_repos[j, 1]]), np.array([Spring_bout_1_repos[j, 2], Spring_bout_2_repos[j, 2]]), '-r')
-        plt.show()
+        # point du milieu  :
+        ax.plot(Pos_repos[0, int((n * m - 1) / 2)], Pos_repos[1, int((n * m - 1) / 2)], Pos_repos[2, int((n * m - 1) / 2)], '.y')
+
+        # ressorts entre le cadre et la toile :
+        # for j in range (2*(m+n)):
+        for j in range(Nb_ressorts):
+            #pqs tres elegant mais cest le seul moyen pour que ca fonctionne
+            a = []
+            a = np.append(a, Spring_bout_1_repos[j, 0])
+            a = np.append(a, Spring_bout_2_repos[j, 0])
+
+            b = []
+            b = np.append(b, Spring_bout_1_repos[j, 1])
+            b = np.append(b, Spring_bout_2_repos[j, 1])
+
+            c = []
+            c = np.append(c, Spring_bout_1_repos[j, 2])
+            c = np.append(c, Spring_bout_2_repos[j, 2])
+
+            ax.plot3D(a, b, c, '-r',linewidth=1)
+            plt.title('Trampoline sans sollicitation exterieure, maille ' +str(m)+'x'+str(n))
+            ax.set_xlabel('x (m)')
+            ax.set_ylabel('y (m)')
+            ax.set_zlabel('z (m)')
+
+
+
 
         for ispring in range(Nb_ressorts):
             print('Delta L (ressort numero '+str(ispring)+') = ' + str(np.linalg.norm(Spring_bout_2[ispring, :] - Spring_bout_1[ispring, :]) - l_repos[ispring]))
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.plot(Pt[0, :], Pt[1, :], Pt[2, :], '.b')
-        ax.plot(Pt_ancrage[0, :], Pt_ancrage[1, :], Pt_ancrage[2, :], '.k')
-        for j in range(Nb_ressorts):
-            ax.plot(np.array([Spring_bout_2[j, 0], Spring_bout_1[j, 0]]), np.array([Spring_bout_2[j, 1], Spring_bout_1[j, 1]]), np.array([Spring_bout_2[j, 2], Spring_bout_1[j, 2]]), '-r')
-        plt.show()
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        # ax.set_aspect('equal')
+        ax.set_box_aspect([1.1, 1.8, 1])
         ax.plot(Pt[0, :], Pt[1, :], Pt[2, :], '.b')
         ax.plot(Pt_ancrage[0, :], Pt_ancrage[1, :], Pt_ancrage[2, :], '.k')
+        # point du milieu :
+        ax.plot(Pt[0, int((n * m - 1) / 2)], Pt[1, int((n * m - 1) / 2)], Pt[2, int((n * m - 1) / 2)], '.y')
+
         for j in range(Nb_ressorts):
-             ax.plot(np.array([Spring_bout_2[j, 0], Spring_bout_2[j, 0] + F_spring[0, j]/10000]), np.array([Spring_bout_2[j, 1], Spring_bout_2[j, 1] + F_spring[1, j]/10000]), np.array([Spring_bout_2[j, 2], Spring_bout_2[j, 2] + F_spring[2, j]/10000]), '-g')
+            #pqs tres elegant mais cest le seul moyen pour que ca fonctionne
+            a = []
+            a = np.append(a, Spring_bout_1[j, 0])
+            a = np.append(a, Spring_bout_2[j, 0])
+
+            b = []
+            b = np.append(b, Spring_bout_1[j, 1])
+            b = np.append(b, Spring_bout_2[j, 1])
+
+            c = []
+            c = np.append(c, Spring_bout_1[j, 2])
+            c = np.append(c, Spring_bout_2[j, 2])
+
+            ax.plot3D(a, b, c, '-r',linewidth=1)
+            plt.title('Trampoline avec une masse ponctuelle de ' +str(Masse_centre)+ 'kg au milieu, maille ' + str(m) + 'x' + str(n))
+            ax.set_xlabel('x (m)')
+            ax.set_ylabel('y (m)')
+            ax.set_zlabel('z (m)')
+
+
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_box_aspect([1.1, 1.8, 1])
+        ax.plot(Pt[0, :], Pt[1, :], Pt[2, :], '.b')
+        ax.plot(Pt_ancrage[0, :], Pt_ancrage[1, :], Pt_ancrage[2, :], '.k')
+       # point du milieu :
+        ax.plot(Pt[0,int((n*m-1)/2)],Pt[1,int((n*m-1)/2)],Pt[2,int((n*m-1)/2)],'.y')
+
+        for j in range(Nb_ressorts):
+            #pas tres elegant mais cest le seul moyen pour que ca fonctionne
+            a = []
+            a = np.append(a, Spring_bout_2[j, 0])
+            a = np.append(a, Spring_bout_2[j, 0]+F_spring[0, j]/10000)
+
+            b = []
+            b = np.append(b, Spring_bout_2[j, 1])
+            b = np.append(b, Spring_bout_2[j, 1]+F_spring[1, j]/10000)
+
+            c = []
+            c = np.append(c, Spring_bout_2[j, 2])
+            c = np.append(c, Spring_bout_2[j, 2]+F_spring[2, j]/10000)
+
+            ax.plot3D(a, b, c, '-g',linewidth=1)
+            plt.title('oooooooooooooooooooooooooo, maille ' + str(
+                m) + 'x' + str(n))
+            ax.set_xlabel('x (m)')
+            ax.set_ylabel('y (m)')
+            ax.set_zlabel('z (m)')
         plt.show()
 
-    print('point centre : ', Pt[:, 7])
+    print('point centre : ', Pt[:, int((n*m-1)/2)])
 
     F_masses = np.zeros((3, n*m))
     F_masses[2, :] = - M * 9.81
@@ -420,8 +430,10 @@ def Force_calc(Masse_centre):
 
     return Force_verticale, Force_horizontale
 
-Masse_centre=80
-Force_calc(Masse_centre)
+Masse_centre=150
+#Force_calc(Masse_centre)
+Force_verticale, Force_horizontale=Force_calc(Masse_centre)
+print('Force verticale : ' +str(Force_verticale) + ' (N), Force horizontale : ' + str(Force_horizontale))
 
 
 # # Generate = False
