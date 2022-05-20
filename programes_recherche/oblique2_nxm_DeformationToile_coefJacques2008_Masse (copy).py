@@ -131,12 +131,19 @@ def ForceEquilib_func(Pt, Pt_ancrage, k, M, l_repos,k_croix,l_repos_croix):
 
     return func
 
-def ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre):
+def ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre,k_croix,l_repos_croix):
     ind_milieu=int((m * n - 1) / 2)
+
     ind_milieu_droite = int((m * n - 1) / 2 - n)
     ind_milieu_haut =  int((m * n - 1) / 2 + 1)
     ind_milieu_gauche = int((m * n - 1) / 2 + n)
     ind_milieu_bas =  int((m * n - 1) / 2 - 1)
+
+    ind_milieu_bas_droite=int((m * n - 1) / 2 - n - 1)
+    ind_milieu_haut_droite = int((m * n - 1) / 2 - n + 1)
+    ind_milieu_haut_gauche= int((m * n - 1) / 2 + n + 1)
+    ind_milieu_bas_gauche= int((m * n - 1) / 2 + n - 1)
+
 
     k_4 = k[Nb_ressorts_cadre+ind_milieu_droite,
             Nb_ressorts_cadre + Nb_ressorts_horz + ind_milieu,
@@ -147,17 +154,32 @@ def ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre):
                         Nb_ressorts_cadre+ ind_milieu,
                         Nb_ressorts_cadre +  Nb_ressorts_horz + ind_milieu_bas]
 
+    # pas sure des indices ci dessous :
+    k_4_croix=k_croix[ind_milieu_droite,ind_milieu_haut,ind_milieu_haut_gauche,ind_milieu_bas_gauche]
+    l_repos_croix_4=l_repos_croix[ind_milieu_droite,ind_milieu_haut,ind_milieu_haut_gauche,ind_milieu_bas_gauche]
+
     Spring_bout_1 = cas.horzcat( Pt[:, ind_milieu_droite], Pt[:, ind_milieu_haut ], Pt[:, ind_milieu_gauche], Pt[:, ind_milieu_bas])
     Spring_bout_2 = cas.horzcat(Pt[:, ind_milieu], Pt[:, ind_milieu],Pt[:, ind_milieu], Pt[:, ind_milieu])
 
+    Spring_bout_croix_1=cas.horzcat( Pt[:, ind_milieu_bas_droite], Pt[:, ind_milieu_haut_droite], Pt[:, ind_milieu], Pt[:, ind_milieu])
+    Spring_bout_croix_2=cas.horzcat( Pt[:, ind_milieu], Pt[:, ind_milieu],ind_milieu_bas_gauche,ind_milieu_haut_gauche)
+
+
     Vect_unit_dir_F = (Spring_bout_1 - Spring_bout_2) / cas.norm_fro(Spring_bout_1 - Spring_bout_2)
-    F_spring = cas.MX.zeros(3, Nb_ressorts)
+    F_spring = cas.MX.zeros(3, 4)
     for ispring in range(4):
         F_spring[:, ispring] = Vect_unit_dir_F[:, ispring] * k_4[ispring] * (
                     cas.norm_fro(Spring_bout_1[:, ispring] - Spring_bout_2[:, ispring]) - l_repos_4[ispring])
 
+    Vect_unit_dir_F_croix = (Spring_bout_croix_2 - Spring_bout_croix_1) / cas.norm_fro(
+        Spring_bout_croix_2 - Spring_bout_croix_1)
+    F_spring_croix = cas.MX.zeros(3, 4)
+    for ispring in range(4):
+        F_spring_croix[:, ispring] = Vect_unit_dir_F_croix[:, ispring] * k_4_croix[ispring] * (
+                cas.norm_fro(Spring_bout_croix_2[:, ispring] - Spring_bout_croix_1[:, ispring]) - l_repos_croix_4[ispring])
+
     Force_Masse = cas.MX.zeros(3)
-    Force_Masse[2] = - (Masse_centre + M[int((m * n - 1) / 2)]) * 9.81
+    Force_Masse[2] = - (Masse_centre + M[ind_milieu]) * 9.81
 
     Force_tot = cas.sum2(F_spring) + Force_Masse
 
@@ -190,7 +212,7 @@ def Force_calc(Masse_centre):
         l_repos = cas.MX(l_repos)
 
         Energie = Energie_func(Pt, Pt_ancrage, k, M, l_repos,k_croix,l_repos_croix)
-        ForceEquilib_centre = ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre)
+        ForceEquilib_centre = ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre,k_croix,l_repos_croix)
         ForceEquilib = ForceEquilib_func(Pt, Pt_ancrage, k, M, l_repos,k_croix,l_repos_croix)
         L_const = L_const_func(Pt, Pt_ancrage)
 
