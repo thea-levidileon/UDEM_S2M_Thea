@@ -425,23 +425,23 @@ def Force_calc(Masse_centre):
 
         # ressorts entre le cadre et la toile :
         # for j in range (2*(m+n)):
-        # for j in range(Nb_ressorts):
-        #     #pqs tres elegant mais cest le seul moyen pour que ca fonctionne
-        #     a = []
-        #     a = np.append(a, Spring_bout_1_repos[j, 0])
-        #     a = np.append(a, Spring_bout_2_repos[j, 0])
-        #
-        #     b = []
-        #     b = np.append(b, Spring_bout_1_repos[j, 1])
-        #     b = np.append(b, Spring_bout_2_repos[j, 1])
-        #
-        #     c = []
-        #     c = np.append(c, Spring_bout_1_repos[j, 2])
-        #     c = np.append(c, Spring_bout_2_repos[j, 2])
-        #
-        #     ax.plot3D(a, b, c, '-r', linewidth=1)
+        for j in range(Nb_ressorts):
+            #pqs tres elegant mais cest le seul moyen pour que ca fonctionne
+            a = []
+            a = np.append(a, Spring_bout_1_repos[j, 0])
+            a = np.append(a, Spring_bout_2_repos[j, 0])
 
-        for j in range(2*(n-1),4*(n-1)):
+            b = []
+            b = np.append(b, Spring_bout_1_repos[j, 1])
+            b = np.append(b, Spring_bout_2_repos[j, 1])
+
+            c = []
+            c = np.append(c, Spring_bout_1_repos[j, 2])
+            c = np.append(c, Spring_bout_2_repos[j, 2])
+
+            ax.plot3D(a, b, c, '-r', linewidth=1)
+
+        for j in range(Nb_ressorts_croix):
             # pqs tres elegant mais cest le seul moyen pour que ca fonctionne
             a = []
             a = np.append(a, Spring_bout_croix_1_repos[j, 0])
@@ -514,21 +514,21 @@ def Force_calc(Masse_centre):
 
             ax.plot3D(a, b, c, '-r',linewidth=1)
 
-        # for j in range(4*(n-1),6*(n-1)):
-        #     # pqs tres elegant mais cest le seul moyen pour que ca fonctionne
-        #     a = []
-        #     a = np.append(a, Spring_bout_croix_1[j, 0])
-        #     a = np.append(a, Spring_bout_croix_2[j, 0])
-        #
-        #     b = []
-        #     b = np.append(b, Spring_bout_croix_1[j, 1])
-        #     b = np.append(b, Spring_bout_croix_2[j, 1])
-        #
-        #     c = []
-        #     c = np.append(c, Spring_bout_croix_1[j, 2])
-        #     c = np.append(c, Spring_bout_croix_2[j, 2])
-        #
-        #     ax.plot3D(a, b, c, '-g',linewidth=1)
+        for j in range(Nb_ressorts_croix):
+            # pqs tres elegant mais cest le seul moyen pour que ca fonctionne
+            a = []
+            a = np.append(a, Spring_bout_croix_1[j, 0])
+            a = np.append(a, Spring_bout_croix_2[j, 0])
+
+            b = []
+            b = np.append(b, Spring_bout_croix_1[j, 1])
+            b = np.append(b, Spring_bout_croix_2[j, 1])
+
+            c = []
+            c = np.append(c, Spring_bout_croix_1[j, 2])
+            c = np.append(c, Spring_bout_croix_2[j, 2])
+
+            ax.plot3D(a, b, c, '-g',linewidth=1)
 
         plt.title('Trampoline avec une masse ponctuelle de ' +str(Masse_centre)+ 'kg au milieu, maille ' + str(m) + 'x' + str(n))
         ax.set_xlabel('x (m)')
