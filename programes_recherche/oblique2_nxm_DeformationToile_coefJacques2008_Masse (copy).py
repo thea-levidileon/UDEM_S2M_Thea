@@ -126,6 +126,7 @@ def ForceEquilib_func(Pt, Pt_ancrage, k, M, l_repos,k_croix,l_repos_croix):
                 cas.norm_fro(Spring_bout_croix_2[:, ispring] - Spring_bout_croix_1[:, ispring]) - l_repos_croix[ispring])
 
     F_spring=cas.horzcat(F_spring,F_spring_croix)
+    F_spring=F_spring_croix
 
     func = cas.Function('ForceEquilib_func', [Pt], [F_spring])  #.expand()
 
@@ -186,21 +187,9 @@ def ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre,k_croix_tab,l_repos
     Force_Masse = cas.MX.zeros(3)
     Force_Masse[2] = - (Masse_centre + M[ind_milieu]) * 9.81
 
-    Force_tot = cas.sum2(F_spring) + Force_Masse
-
+    Force_tot = cas.sum2(F_spring) + cas.sum2(F_spring_croix) + Force_Masse
+    # Force_tot = cas.sum2(F_spring_croix) + Force_Masse
     func = cas.Function('ForceEquilib_func', [Pt], [Force_tot])  #.expand()
-
-    return func
-
-def L_const_func(Pt, Pt_ancrage):
-
-    Spring_bout_1, Spring_bout_2 = Spring_bouts(Pt, Pt_ancrage)
-
-    Vect = cas.MX.zeros(Nb_ressorts)
-    for ispring in range(Nb_ressorts):
-        Vect[ispring] = cas.norm_fro(Spring_bout_2[:, ispring] - Spring_bout_1[:, ispring])
-
-    func = cas.Function('L_const_func', [Pt], [Vect])  #.expand()
 
     return func
 
@@ -221,7 +210,6 @@ def Force_calc(Masse_centre):
         Energie = Energie_func(Pt, Pt_ancrage, k, M, l_repos,k_croix_tab,l_repos_croix)
         ForceEquilib_centre = ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre,k_croix_tab,l_repos_croix)
         ForceEquilib = ForceEquilib_func(Pt, Pt_ancrage, k, M, l_repos,k_croix_tab,l_repos_croix)
-        # L_const = L_const_func(Pt, Pt_ancrage)
 
         w = [] #vecteur de variables
         w0 = [] #conditions initiales
@@ -324,8 +312,17 @@ def Force_calc(Masse_centre):
     k6 = 2 * k5
     k7 = 2 / (m - 1) * 23308.23
     k8 = 2 * k7
+
+    # k1=1
+    # k2=1
+    # k3=1
+    # k4=1
+    # k5=1
+    # k6=1
+    # k7=1
+    # k8=1
     # k_croix=(k6**2+k8**2)**(1/2)
-    k_croix=0.00005
+    k_croix=10000 #je sais pas
 
     # longueurs au repos trouvees a partir du programme 5x3:
     l_repos_bord = 0.240-0.045233
@@ -333,7 +330,6 @@ def Force_calc(Masse_centre):
     l_repos_vertical = 4 * 1.052 / (n - 1)
     l_repos_horizontal = 2 * 1.0525 / (m - 1)
     l_croix=(l_repos_vertical**2+l_repos_horizontal**2)**0.5
-
     # #CALCUL DES RAIDEURS ET DES LONGUEURS AU REPOS
 
     # ressorts entre le cadre du trampoline et la toile : k1,k2,k3,k4
@@ -349,40 +345,29 @@ def Force_calc(Masse_centre):
     k_bord[0], k_bord[n - 1], k_bord[n + m], k_bord[2 * n + m - 1] = k1, k1, k1, k1
     k_bord[n], k_bord[n + m - 1], k_bord[2 * n + m], k_bord[2 * (n + m) - 1] = k3, k3, k3, k3
     l_bord_tab[0], l_bord_tab[n - 1], l_bord_tab[n + m], l_bord_tab[2 * n + m - 1] = l_repos_coin, l_repos_coin, l_repos_coin, l_repos_coin
-    l_bord_tab[n], l_bord_tab[n + m - 1], l_bord_tab[2 * n + m], l_bord_tab[
-        2 * (n + m) - 1] = l_repos_coin, l_repos_coin, l_repos_coin, l_repos_coin
+    l_bord_tab[n], l_bord_tab[n + m - 1], l_bord_tab[2 * n + m], l_bord_tab[2 * (n + m) - 1] = l_repos_coin, l_repos_coin, l_repos_coin, l_repos_coin
 
     # ressorts horizontaux internes a la toile : k5,k6
     k_horizontaux = k6 * np.ones(n * (m - 1))
-    # for i in range (n*(m-1)):
-    #     if i%n==0 or i%n==n-1 :
-    #         k_horizontaux[i]=k5
     k_horizontaux[0:n * m - 1:n] = k5  # ressorts horizontaux du bord DE LA TOILE en bas
     k_horizontaux[n - 1:n * (m - 1):n] = k5  # ressorts horizontaux du bord DE LA TOILE en haut
     l_horizontal_tab =  l_repos_horizontal * np.ones(n * (m - 1))
 
     # ressorts verticaux internes a la toile : k7,k8
     k_verticaux = k8 * np.ones(m * (n - 1))
-    # for i in range (m*(n-1)):
-    #     if i%m==0 or i%m==m-1 :
-    #         k_verticaux[i]=k7
     k_verticaux[0:m * (n - 1):m] = k7  # ressorts verticaux du bord DE LA TOILE a droite
     k_verticaux[m - 1:n * m - 1:m] = k7  # ressorts verticaux du bord DE LA TOILE a gauche
     l_vertical_tab = l_repos_vertical * np.ones(m * (n - 1))
 
     #ressorts obliques internes a la toile :
     l_repos_croix=l_croix*np.ones(Nb_ressorts_croix)
-    # k_croix_tab=cas.MX.zeros(Nb_ressorts_croix)
-    # k_croix_tab[:]=k_croix
     k_croix_tab=k_croix*np.ones(Nb_ressorts_croix)
 
     k = np.append(k_horizontaux, k_verticaux)
     k = np.append(k_bord, k)
-    # k=np.append(k,k_croix)
 
     l_repos = np.append(l_horizontal_tab, l_vertical_tab)
     l_repos = np.append(l_bord_tab, l_repos)
-    # l_repos=np.append(l_repos,l_repos_croix)
 
     # CALCUL DES MASSES : (pas pris en compte la masse ajoutee par lathlete)
     mcoin = 1.803  # masse d'un point se trouvant sur un coin de la toile
@@ -418,6 +403,12 @@ def Force_calc(Masse_centre):
         F_spring[:, ispring] = Vect_unit_dir_F[ispring, :] * k[ispring] * (
                 np.linalg.norm(Spring_bout_2[ispring, :] - Spring_bout_1[ispring, :]) - l_repos[ispring])
 
+    Vect_unit_dir_F_croix = (Spring_bout_croix_2 - Spring_bout_croix_1) /cas.norm_fro(Spring_bout_croix_2 - Spring_bout_croix_1)
+    F_spring_croix = np.zeros((3, Nb_ressorts_croix))
+    for ispring in range(Nb_ressorts_croix):
+        F_spring_croix[:, ispring] = Vect_unit_dir_F_croix[ispring, :] * k_croix_tab[ispring] * (
+                cas.norm_fro(Spring_bout_croix_2[ispring, :] - Spring_bout_croix_1[ispring, :]) - l_repos_croix[ispring])
+
 ####################################################################################################################################
    #AFFICHAGE :
 
@@ -434,23 +425,23 @@ def Force_calc(Masse_centre):
 
         # ressorts entre le cadre et la toile :
         # for j in range (2*(m+n)):
-        for j in range(Nb_ressorts):
-            #pqs tres elegant mais cest le seul moyen pour que ca fonctionne
-            a = []
-            a = np.append(a, Spring_bout_1_repos[j, 0])
-            a = np.append(a, Spring_bout_2_repos[j, 0])
+        # for j in range(Nb_ressorts):
+        #     #pqs tres elegant mais cest le seul moyen pour que ca fonctionne
+        #     a = []
+        #     a = np.append(a, Spring_bout_1_repos[j, 0])
+        #     a = np.append(a, Spring_bout_2_repos[j, 0])
+        #
+        #     b = []
+        #     b = np.append(b, Spring_bout_1_repos[j, 1])
+        #     b = np.append(b, Spring_bout_2_repos[j, 1])
+        #
+        #     c = []
+        #     c = np.append(c, Spring_bout_1_repos[j, 2])
+        #     c = np.append(c, Spring_bout_2_repos[j, 2])
+        #
+        #     ax.plot3D(a, b, c, '-r', linewidth=1)
 
-            b = []
-            b = np.append(b, Spring_bout_1_repos[j, 1])
-            b = np.append(b, Spring_bout_2_repos[j, 1])
-
-            c = []
-            c = np.append(c, Spring_bout_1_repos[j, 2])
-            c = np.append(c, Spring_bout_2_repos[j, 2])
-
-            ax.plot3D(a, b, c, '-r', linewidth=1)
-
-        for j in range(Nb_ressorts_croix):
+        for j in range(2*(n-1),4*(n-1)):
             # pqs tres elegant mais cest le seul moyen pour que ca fonctionne
             a = []
             a = np.append(a, Spring_bout_croix_1_repos[j, 0])
@@ -485,6 +476,28 @@ def Force_calc(Masse_centre):
         # point du milieu :
         ax.plot(Pt[0, int((n * m - 1) / 2)], Pt[1, int((n * m - 1) / 2)], Pt[2, int((n * m - 1) / 2)], '.y')
 
+
+        ind_milieu_droite = int((m * n - 1) / 2 - n)
+        ind_milieu_haut = int((m * n - 1) / 2 + 1)
+        ind_milieu_gauche = int((m * n - 1) / 2 + n)
+        ind_milieu_bas = int((m * n - 1) / 2 - 1)
+
+        ind_milieu_bas_droite = int((m * n - 1) / 2 - n - 1)
+        ind_milieu_haut_droite = int((m * n - 1) / 2 - n + 1)
+        ind_milieu_haut_gauche = int((m * n - 1) / 2 + n + 1)
+        ind_milieu_bas_gauche = int((m * n - 1) / 2 + n - 1)
+
+        ax.plot(Pt[0, ind_milieu_droite], Pt[1, ind_milieu_droite], Pt[2, ind_milieu_droite], '.y')
+        ax.plot(Pt[0, ind_milieu_haut], Pt[1, ind_milieu_haut], Pt[2, ind_milieu_haut], '.y')
+        ax.plot(Pt[0, ind_milieu_gauche], Pt[1, ind_milieu_gauche], Pt[2, ind_milieu_gauche], '.y')
+        ax.plot(Pt[0, ind_milieu_bas], Pt[1, ind_milieu_bas], Pt[2, ind_milieu_bas], '.y')
+
+        ax.plot(Pt[0, ind_milieu_bas_droite], Pt[1, ind_milieu_bas_droite], Pt[2, ind_milieu_bas_droite], '.y')
+        ax.plot(Pt[0,  ind_milieu_haut_droite], Pt[1,  ind_milieu_haut_droite], Pt[2,  ind_milieu_haut_droite], '.y')
+        ax.plot(Pt[0, ind_milieu_haut_gauche], Pt[1, ind_milieu_haut_gauche], Pt[2, ind_milieu_haut_gauche], '.y')
+        ax.plot(Pt[0,  ind_milieu_bas_gauche], Pt[1,  ind_milieu_bas_gauche], Pt[2,  ind_milieu_bas_gauche], '.y')
+
+
         for j in range(Nb_ressorts):
             #pqs tres elegant mais cest le seul moyen pour que ca fonctionne
             a = []
@@ -501,21 +514,21 @@ def Force_calc(Masse_centre):
 
             ax.plot3D(a, b, c, '-r',linewidth=1)
 
-        for j in range(Nb_ressorts_croix):
-            # pqs tres elegant mais cest le seul moyen pour que ca fonctionne
-            a = []
-            a = np.append(a, Spring_bout_croix_1[j, 0])
-            a = np.append(a, Spring_bout_croix_2[j, 0])
-
-            b = []
-            b = np.append(b, Spring_bout_croix_1[j, 1])
-            b = np.append(b, Spring_bout_croix_2[j, 1])
-
-            c = []
-            c = np.append(c, Spring_bout_croix_1[j, 2])
-            c = np.append(c, Spring_bout_croix_2[j, 2])
-
-            ax.plot3D(a, b, c, '-g',linewidth=1)
+        # for j in range(4*(n-1),6*(n-1)):
+        #     # pqs tres elegant mais cest le seul moyen pour que ca fonctionne
+        #     a = []
+        #     a = np.append(a, Spring_bout_croix_1[j, 0])
+        #     a = np.append(a, Spring_bout_croix_2[j, 0])
+        #
+        #     b = []
+        #     b = np.append(b, Spring_bout_croix_1[j, 1])
+        #     b = np.append(b, Spring_bout_croix_2[j, 1])
+        #
+        #     c = []
+        #     c = np.append(c, Spring_bout_croix_1[j, 2])
+        #     c = np.append(c, Spring_bout_croix_2[j, 2])
+        #
+        #     ax.plot3D(a, b, c, '-g',linewidth=1)
 
         plt.title('Trampoline avec une masse ponctuelle de ' +str(Masse_centre)+ 'kg au milieu, maille ' + str(m) + 'x' + str(n))
         ax.set_xlabel('x (m)')
@@ -555,18 +568,18 @@ def Force_calc(Masse_centre):
         ax.set_zlabel('z (m)')
         plt.show()
 
-    print('point centre : ', Pt[:, int((n*m-1)/2)])
+    ind_milieu=int((m*n-1)/2)
+    print('point centre : ', Pt[:, ind_milieu])
 
     F_masses = np.zeros((3, n*m))
     F_masses[2, :] = - M * 9.81
 
-    Force_verticale = cas.sum1(F_spring[2,:]) + cas.sum1(F_masses[2, :])
-    Force_horizontale = cas.sum1(F_spring[1, :])
+    Force_verticale = cas.sum1(F_spring[2,:]) + cas.sum1(F_spring_croix[2,:]) + cas.sum1(F_masses[2, :])
+    Force_horizontale = cas.sum1(F_spring[1, :]) + cas.sum1(F_spring_croix[1,:])
 
     return Force_verticale, Force_horizontale
 
 Masse_centre=150
-#Force_calc(Masse_centre)
 Force_verticale, Force_horizontale=Force_calc(Masse_centre)
 print('Force verticale : ' +str(Force_verticale) + ' (N), Force horizontale : ' + str(Force_horizontale))
 
