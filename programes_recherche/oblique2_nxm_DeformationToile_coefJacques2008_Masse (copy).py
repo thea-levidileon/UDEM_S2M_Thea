@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 from IPython import embed
 from mpl_toolkits import mplot3d
 
-n=15 #nombre de mailles sur le grand cote
-m=9 #nombre de mailles sur le petit cote
+n=9 #nombre de mailles sur le grand cote
+m=5 #nombre de mailles sur le petit cote
 Nb_ressorts=2*n*m+n+m #nombre de ressorts non obliques total dans le modele
 Nb_ressorts_cadre=2*n+2*m #nombre de ressorts entre le cadre et la toile
 Nb_ressorts_croix=2*(m-1)*(n-1) #nombre de ressorts obliques dans la toile
@@ -117,9 +117,9 @@ def ForceEquilib_func(Pt, Pt_ancrage, k, M, l_repos,k_croix,l_repos_croix):
     F_spring = cas.MX.zeros(3, Nb_ressorts)
     for ispring in range(Nb_ressorts):
         F_spring[:, ispring] = Vect_unit_dir_F[:, ispring] * k[ispring] * (
-                    cas.norm_fro(Spring_bout_2[:, ispring] - Spring_bout_1[:, ispring]) - l_repos[ispring])
+                cas.norm_fro(Spring_bout_2[:, ispring] - Spring_bout_1[:, ispring]) - l_repos[ispring])
 
-    Vect_unit_dir_F_croix = (Spring_bout_croix_2 - Spring_bout_croix_1) / cas.norm_fro(Spring_bout_croix_2 - Spring_bout_croix_1)
+    Vect_unit_dir_F_croix = (Spring_bout_croix_2 - Spring_bout_croix_1) /cas.norm_fro(Spring_bout_croix_2 - Spring_bout_croix_1)
     F_spring_croix = cas.MX.zeros(3, Nb_ressorts_croix)
     for ispring in range(Nb_ressorts_croix):
         F_spring_croix[:, ispring] = Vect_unit_dir_F_croix[:, ispring] * k_croix[ispring] * (
@@ -131,7 +131,7 @@ def ForceEquilib_func(Pt, Pt_ancrage, k, M, l_repos,k_croix,l_repos_croix):
 
     return func
 
-def ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre,k_croix,l_repos_croix):
+def ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre,k_croix_tab,l_repos_croix):
     ind_milieu=int((m * n - 1) / 2)
 
     ind_milieu_droite = int((m * n - 1) / 2 - n)
@@ -145,24 +145,29 @@ def ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre,k_croix,l_repos_cro
     ind_milieu_bas_gauche= int((m * n - 1) / 2 + n - 1)
 
 
-    k_4 = k[Nb_ressorts_cadre+ind_milieu_droite,
+    k_4 = k[np.array([Nb_ressorts_cadre+ind_milieu_droite,
             Nb_ressorts_cadre + Nb_ressorts_horz + ind_milieu,
             Nb_ressorts_cadre+ ind_milieu,
-            Nb_ressorts_cadre +  Nb_ressorts_horz + ind_milieu_bas]
-    l_repos_4 = l_repos[Nb_ressorts_cadre+ind_milieu_droite,
+            Nb_ressorts_cadre +  Nb_ressorts_horz + ind_milieu_bas])]
+    l_repos_4 = l_repos[np.array([Nb_ressorts_cadre+ind_milieu_droite,
                         Nb_ressorts_cadre + Nb_ressorts_horz + ind_milieu,
                         Nb_ressorts_cadre+ ind_milieu,
-                        Nb_ressorts_cadre +  Nb_ressorts_horz + ind_milieu_bas]
+                        Nb_ressorts_cadre +  Nb_ressorts_horz + ind_milieu_bas])]
 
-    # pas sure des indices ci dessous :
-    k_4_croix=k_croix[ind_milieu_droite,ind_milieu_haut,ind_milieu_haut_gauche,ind_milieu_bas_gauche]
-    l_repos_croix_4=l_repos_croix[ind_milieu_droite,ind_milieu_haut,ind_milieu_haut_gauche,ind_milieu_bas_gauche]
+    k_4_croix=k_croix_tab[np.array([ind_milieu_droite,
+                          ind_milieu_haut,
+                          ind_milieu_haut_gauche,
+                          ind_milieu_bas_gauche])]
+    l_repos_croix_4=l_repos_croix[np.array([ind_milieu_droite,
+                                  ind_milieu_haut,
+                                  ind_milieu_haut_gauche,
+                                  ind_milieu_bas_gauche])]
 
     Spring_bout_1 = cas.horzcat( Pt[:, ind_milieu_droite], Pt[:, ind_milieu_haut ], Pt[:, ind_milieu_gauche], Pt[:, ind_milieu_bas])
     Spring_bout_2 = cas.horzcat(Pt[:, ind_milieu], Pt[:, ind_milieu],Pt[:, ind_milieu], Pt[:, ind_milieu])
 
     Spring_bout_croix_1=cas.horzcat( Pt[:, ind_milieu_bas_droite], Pt[:, ind_milieu_haut_droite], Pt[:, ind_milieu], Pt[:, ind_milieu])
-    Spring_bout_croix_2=cas.horzcat( Pt[:, ind_milieu], Pt[:, ind_milieu],ind_milieu_bas_gauche,ind_milieu_haut_gauche)
+    Spring_bout_croix_2=cas.horzcat( Pt[:, ind_milieu], Pt[:, ind_milieu],Pt[:,ind_milieu_bas_gauche],Pt[:,ind_milieu_haut_gauche])
 
 
     Vect_unit_dir_F = (Spring_bout_1 - Spring_bout_2) / cas.norm_fro(Spring_bout_1 - Spring_bout_2)
@@ -202,7 +207,7 @@ def L_const_func(Pt, Pt_ancrage):
 
 def Force_calc(Masse_centre):
 
-    def Optimisation_toile(Masse_centre, Pt_ancrage, k, M, l_repos, Pos_repos):
+    def Optimisation_toile(Masse_centre, Pt_ancrage, k, M, l_repos, Pos_repos,k_croix_tab,l_repos_croix):
 
         Pt = cas.MX.sym('Pt', 3, n*m)
 
@@ -210,11 +215,13 @@ def Force_calc(Masse_centre):
         k = cas.MX(k)
         M = cas.MX(M)
         l_repos = cas.MX(l_repos)
+        k_croix_tab=cas.MX(k_croix_tab)
+        l_repos_croix = cas.MX(l_repos_croix)
 
-        Energie = Energie_func(Pt, Pt_ancrage, k, M, l_repos,k_croix,l_repos_croix)
-        ForceEquilib_centre = ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre,k_croix,l_repos_croix)
-        ForceEquilib = ForceEquilib_func(Pt, Pt_ancrage, k, M, l_repos,k_croix,l_repos_croix)
-        L_const = L_const_func(Pt, Pt_ancrage)
+        Energie = Energie_func(Pt, Pt_ancrage, k, M, l_repos,k_croix_tab,l_repos_croix)
+        ForceEquilib_centre = ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre,k_croix_tab,l_repos_croix)
+        ForceEquilib = ForceEquilib_func(Pt, Pt_ancrage, k, M, l_repos,k_croix_tab,l_repos_croix)
+        # L_const = L_const_func(Pt, Pt_ancrage)
 
         w = [] #vecteur de variables
         w0 = [] #conditions initiales
@@ -288,7 +295,7 @@ def Force_calc(Masse_centre):
     dl = 2 * l_toile / (m - 1)
 
     # ancrage :
-    Pt_ancrage = np.zeros((3, 2 * (n + m)))
+    Pt_ancrage = np.zeros((3, Nb_ressorts_cadre))
     # cote droit :
     for i in range(n):
         Pt_ancrage[:, i] = np.array([l_cadre, -L_toile + i * dL, 0])
@@ -317,7 +324,8 @@ def Force_calc(Masse_centre):
     k6 = 2 * k5
     k7 = 2 / (m - 1) * 23308.23
     k8 = 2 * k7
-    k_croix=(k6**2+k8**2)**(1/2)
+    # k_croix=(k6**2+k8**2)**(1/2)
+    k_croix=0.00005
 
     # longueurs au repos trouvees a partir du programme 5x3:
     l_repos_bord = 0.240-0.045233
@@ -364,7 +372,9 @@ def Force_calc(Masse_centre):
 
     #ressorts obliques internes a la toile :
     l_repos_croix=l_croix*np.ones(Nb_ressorts_croix)
-    k_croix=k_croix*np.ones(Nb_ressorts_croix)
+    # k_croix_tab=cas.MX.zeros(Nb_ressorts_croix)
+    # k_croix_tab[:]=k_croix
+    k_croix_tab=k_croix*np.ones(Nb_ressorts_croix)
 
     k = np.append(k_horizontaux, k_verticaux)
     k = np.append(k_bord, k)
@@ -390,7 +400,7 @@ def Force_calc(Masse_centre):
 
     ###################################################################################################################
 
-    Pt = Optimisation_toile(Masse_centre, Pt_ancrage, k, M, l_repos, Pos_repos)
+    Pt = Optimisation_toile(Masse_centre, Pt_ancrage, k, M, l_repos, Pos_repos,k_croix_tab,l_repos_croix)
 
     Spring_bout_1, Spring_bout_2= Spring_bouts(Pt, Pt_ancrage)
     Spring_bout_1_repos, Spring_bout_2_repos = Spring_bouts(Pos_repos, Pt_ancrage)
