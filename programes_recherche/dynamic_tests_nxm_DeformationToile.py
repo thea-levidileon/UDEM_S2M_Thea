@@ -695,7 +695,7 @@ F_point=Force_point(Masse_centre)
 # print(F_point)
 
 ###############################################################################
-#BOUCLE DYNAMIQUE :
+#INIT DYNAMIQUE :
 dt = 1
 T_total = 5
 Pos_repos, Pt, Pt_ancrage, M, k, l_repos, k_croix_tab, l_repos_croix, F_spring, F_spring_croix, F_masses = Force_calc(
@@ -708,6 +708,8 @@ accel = np.zeros((int(T_total / dt), 3, np.shape(Pt)[1]))
 
 pos[0, :, :] = Pt[:, :]
 
+#######################################################################################################################
+#AFFICHAGE ETAT INITIAL
 
 fig = plt.figure()
 
@@ -756,6 +758,7 @@ ax.set_xlabel('x (m)')
 ax.set_ylabel('y (m)')
 ax.set_zlabel('z (m)')
 
+####################################################################################################################
 
 for t in range(1, int(T_total / dt)):
     F_point = Force_point(Masse_centre)
@@ -763,6 +766,9 @@ for t in range(1, int(T_total / dt)):
     vitesse[t, :, :] = dt * accel[t, :, :] + vitesse[t - 1, :, :]
     pos[t, :, :] = dt * vitesse[t, :, :] + pos[t - 1, :, :]
 
+
+
+#######################################################################################################################
     #affichage a chaque instant
     ax = fig.add_subplot(1, int(T_total / dt), t+1, projection='3d')
     ax.set_box_aspect([1.1, 1.8, 1])
@@ -812,6 +818,7 @@ for t in range(1, int(T_total / dt)):
         a = []
         a = np.append(a, Spring_bout_croix_1[j, 0])
         a = np.append(a, Spring_bout_croix_2[j, 0])
+
 
         b = []
         b = np.append(b, Spring_bout_croix_1[j, 1])
