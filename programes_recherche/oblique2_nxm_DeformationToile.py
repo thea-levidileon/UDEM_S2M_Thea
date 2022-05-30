@@ -15,11 +15,120 @@ from mpl_toolkits import mplot3d
 
 n=9 #nombre de mailles sur le grand cote
 m=5 #nombre de mailles sur le petit cote
+
 Nb_ressorts=2*n*m+n+m #nombre de ressorts non obliques total dans le modele
 Nb_ressorts_cadre=2*n+2*m #nombre de ressorts entre le cadre et la toile
 Nb_ressorts_croix=2*(m-1)*(n-1) #nombre de ressorts obliques dans la toile
 Nb_ressorts_horz=n * (m - 1) #nombre de ressorts horizontaux dans la toile (pas dans le cadre)
 Nb_ressorts_vert=m * (n - 1) #nombre de ressorts verticaux dans la toile (pas dans le cadre)
+
+# Longueur
+L_toile = 2.134
+L_cadre = 2.134 + 0.35
+dL = 2 * L_toile / (n - 1)
+# Largeur
+l_toile = 1.07
+l_cadre = 1.07 + 0.38
+dl = 2 * l_toile / (m - 1)
+
+def Param():
+    # k trouves a partir du programme 5x3:
+    k1 = (5 / (n)) * 3266.68
+    k2 = k1 * 2
+    k3 = (3 / (m)) * 3178.4
+    k4 = k3 * 2
+    k5 = 4 / (n - 1) * 22866.79
+    k6 = 2 * k5
+    k7 = 2 / (m - 1) * 23308.23
+    k8 = 2 * k7
+    k_croix = 10000  # je sais pas
+
+    # longueurs au repos trouvees a partir du programme 5x3:
+    l_repos_bord = 0.240 - 0.045233
+    l_repos_coin = 0.240 - 0.100254
+    l_repos_vertical = 4 * 1.052 / (n - 1)
+    l_repos_horizontal = 2 * 1.0525 / (m - 1)
+    l_croix = (l_repos_vertical ** 2 + l_repos_horizontal ** 2) ** 0.5
+    # #CALCUL DES RAIDEURS ET DES LONGUEURS AU REPOS
+
+    # ressorts entre le cadre du trampoline et la toile : k1,k2,k3,k4
+    k_bord = np.zeros(Nb_ressorts_cadre)
+    l_bord_tab = np.zeros(Nb_ressorts_cadre)
+    # cotes verticaux :
+    k_bord[0:n], k_bord[n + m:2 * n + m] = k2, k2
+    l_bord_tab[0:n], l_bord_tab[n + m:2 * n + m] = l_repos_bord, l_repos_bord
+    # cotes horizontaux :
+    k_bord[n:n + m], k_bord[2 * n + m:2 * n + 2 * m] = k4, k4
+    l_bord_tab[n:n + m], l_bord_tab[2 * n + m:2 * n + 2 * m] = l_repos_bord, l_repos_bord
+    # coins :
+    k_bord[0], k_bord[n - 1], k_bord[n + m], k_bord[2 * n + m - 1] = k1, k1, k1, k1
+    k_bord[n], k_bord[n + m - 1], k_bord[2 * n + m], k_bord[2 * (n + m) - 1] = k3, k3, k3, k3
+    l_bord_tab[0], l_bord_tab[n - 1], l_bord_tab[n + m], l_bord_tab[
+        2 * n + m - 1] = l_repos_coin, l_repos_coin, l_repos_coin, l_repos_coin
+    l_bord_tab[n], l_bord_tab[n + m - 1], l_bord_tab[2 * n + m], l_bord_tab[
+        2 * (n + m) - 1] = l_repos_coin, l_repos_coin, l_repos_coin, l_repos_coin
+
+    # ressorts horizontaux internes a la toile : k5,k6
+    k_horizontaux = k6 * np.ones(n * (m - 1))
+    k_horizontaux[0:n * m - 1:n] = k5  # ressorts horizontaux du bord DE LA TOILE en bas
+    k_horizontaux[n - 1:n * (m - 1):n] = k5  # ressorts horizontaux du bord DE LA TOILE en haut
+    l_horizontal_tab = l_repos_horizontal * np.ones(n * (m - 1))
+
+    # ressorts verticaux internes a la toile : k7,k8
+    k_verticaux = k8 * np.ones(m * (n - 1))
+    k_verticaux[0:m * (n - 1):m] = k7  # ressorts verticaux du bord DE LA TOILE a droite
+    k_verticaux[m - 1:n * m - 1:m] = k7  # ressorts verticaux du bord DE LA TOILE a gauche
+    l_vertical_tab = l_repos_vertical * np.ones(m * (n - 1))
+
+    # ressorts obliques internes a la toile :
+    l_repos_croix = l_croix * np.ones(Nb_ressorts_croix)
+    k_croix_tab = k_croix * np.ones(Nb_ressorts_croix)
+
+    k = np.append(k_horizontaux, k_verticaux)
+    k = np.append(k_bord, k)
+
+    l_repos = np.append(l_horizontal_tab, l_vertical_tab)
+    l_repos = np.append(l_bord_tab, l_repos)
+
+    # CALCUL DES MASSES : (pas pris en compte la masse ajoutee par lathlete)
+    mcoin = 1.803  # masse d'un point se trouvant sur un coin de la toile
+    mpetit = 0.5 * 5.695 / (m - 2)  # masse d'un point se trouvant sur le petit cote de la toile
+    mgrand = 0.5 * 9.707 / (n - 2)  # masse d'un point se trouvant sur le grand cote de la toile
+    mmilieu = 3 * 0.650 / ((n - 2) * (m - 2))  # masse d'un point se trouvant au milieu de la toile
+
+    M = mmilieu * np.ones(n * m)  # on initialise toutes les masses a celle du centre
+    M[0], M[n - 1], M[n * (m - 1)], M[n * m - 1] = mcoin, mcoin, mcoin, mcoin
+    M[n:n * (m - 1):n] = mpetit  # masses du cote bas
+    M[2 * n - 1:n * m - 1:n] = mpetit  # masses du cote haut
+    M[1:n - 1] = mgrand  # masse du cote droit
+    M[n * (m - 1) + 1:n * m - 1] = mgrand  # masse du cote gauche
+    M[int((m * n - 1) / 2)] += Masse_centre
+
+    return k, l_repos, M, k_croix_tab, l_repos_croix
+
+def Points_ancrage_repos():
+    # ancrage :
+    Pt_ancrage = np.zeros((3, Nb_ressorts_cadre))
+    # cote droit :
+    for i in range(n):
+        Pt_ancrage[:, i] = np.array([l_cadre, -L_toile + i * dL, 0])
+    # cote haut :
+    for j in range(n, n + m):
+        Pt_ancrage[:, j] = np.array([l_toile - (j - n) * dl, L_cadre, 0])
+    # cote gauche :
+    for k in range(n + m, 2 * n + m):
+        Pt_ancrage[:, k] = np.array([-l_cadre, L_toile - (k - m - n) * dL, 0])
+    # cote bas :
+    for h in range(2 * n + m, Nb_ressorts_cadre):
+        Pt_ancrage[:, h] = np.array([-l_toile + (h - 2 * n - m) * dl, -L_cadre, 0])
+
+    # repos :
+    Pos_repos = np.zeros((3, n*m))
+    print(n*m)
+    for i in range(n*m):
+        Pos_repos[:, i] = np.array([l_toile - (i // n) * dl, -L_toile + (i % n) * dL, 0])
+
+    return Pt_ancrage,Pos_repos
 
 
 def Spring_bouts(Pt,Pt_ancrage):
@@ -273,116 +382,8 @@ def Force_calc(Masse_centre):
         return Pt
 
 ##################################################################################################################
-    #Longueur
-    L_toile = 2.134
-    L_cadre=2.134+0.35
-    dL = 2 * L_toile / (n - 1)
-    #Largeur
-    l_toile = 1.07
-    l_cadre=1.07+0.38
-    dl = 2 * l_toile / (m - 1)
-
-    # ancrage :
-    Pt_ancrage = np.zeros((3, Nb_ressorts_cadre))
-    # cote droit :
-    for i in range(n):
-        Pt_ancrage[:, i] = np.array([l_cadre, -L_toile + i * dL, 0])
-    # cote haut :
-    for j in range(n, n + m):
-        Pt_ancrage[:, j] = np.array([l_toile - (j - n) * dl, L_cadre, 0])
-    # cote gauche :
-    for k in range(n + m, 2 * n + m):
-        Pt_ancrage[:, k] = np.array([-l_cadre, L_toile - (k - m - n) * dL, 0])
-    # cote bas :
-    for h in range(2 * n + m, Nb_ressorts_cadre):
-        Pt_ancrage[:, h] = np.array([-l_toile + (h - 2 * n - m) * dl, -L_cadre, 0])
-
-    # repos :
-    Pos_repos = np.zeros((3, n*m))
-    print(n*m)
-    for i in range(n*m):
-        Pos_repos[:, i] = np.array([l_toile - (i // n) * dl, -L_toile + (i % n) * dL, 0])
-
-    # k trouves a partir du programme 5x3:
-    k1 = (5 / (n)) * 3266.68
-    k2 = k1 * 2
-    k3 = (3 / (m)) * 3178.4
-    k4 = k3 * 2
-    k5 = 4 / (n - 1) * 22866.79
-    k6 = 2 * k5
-    k7 = 2 / (m - 1) * 23308.23
-    k8 = 2 * k7
-
-    # k1=1
-    # k2=1
-    # k3=1
-    # k4=1
-    # k5=1
-    # k6=1
-    # k7=1
-    # k8=1
-    # k_croix=(k6**2+k8**2)**(1/2)
-    k_croix=10000 #je sais pas
-
-    # longueurs au repos trouvees a partir du programme 5x3:
-    l_repos_bord = 0.240-0.045233
-    l_repos_coin = 0.240-0.100254
-    l_repos_vertical = 4 * 1.052 / (n - 1)
-    l_repos_horizontal = 2 * 1.0525 / (m - 1)
-    l_croix=(l_repos_vertical**2+l_repos_horizontal**2)**0.5
-    # #CALCUL DES RAIDEURS ET DES LONGUEURS AU REPOS
-
-    # ressorts entre le cadre du trampoline et la toile : k1,k2,k3,k4
-    k_bord = np.zeros(Nb_ressorts_cadre)
-    l_bord_tab = np.zeros(Nb_ressorts_cadre)
-    # cotes verticaux :
-    k_bord[0:n], k_bord[n + m:2 * n + m] = k2, k2
-    l_bord_tab[0:n], l_bord_tab[n + m:2 * n + m] = l_repos_bord, l_repos_bord
-    # cotes horizontaux :
-    k_bord[n:n + m], k_bord[2 * n + m:2 * n + 2 * m] = k4, k4
-    l_bord_tab[n:n + m], l_bord_tab[2 * n + m:2 * n + 2 * m] = l_repos_bord, l_repos_bord
-    # coins :
-    k_bord[0], k_bord[n - 1], k_bord[n + m], k_bord[2 * n + m - 1] = k1, k1, k1, k1
-    k_bord[n], k_bord[n + m - 1], k_bord[2 * n + m], k_bord[2 * (n + m) - 1] = k3, k3, k3, k3
-    l_bord_tab[0], l_bord_tab[n - 1], l_bord_tab[n + m], l_bord_tab[2 * n + m - 1] = l_repos_coin, l_repos_coin, l_repos_coin, l_repos_coin
-    l_bord_tab[n], l_bord_tab[n + m - 1], l_bord_tab[2 * n + m], l_bord_tab[2 * (n + m) - 1] = l_repos_coin, l_repos_coin, l_repos_coin, l_repos_coin
-
-    # ressorts horizontaux internes a la toile : k5,k6
-    k_horizontaux = k6 * np.ones(n * (m - 1))
-    k_horizontaux[0:n * m - 1:n] = k5  # ressorts horizontaux du bord DE LA TOILE en bas
-    k_horizontaux[n - 1:n * (m - 1):n] = k5  # ressorts horizontaux du bord DE LA TOILE en haut
-    l_horizontal_tab =  l_repos_horizontal * np.ones(n * (m - 1))
-
-    # ressorts verticaux internes a la toile : k7,k8
-    k_verticaux = k8 * np.ones(m * (n - 1))
-    k_verticaux[0:m * (n - 1):m] = k7  # ressorts verticaux du bord DE LA TOILE a droite
-    k_verticaux[m - 1:n * m - 1:m] = k7  # ressorts verticaux du bord DE LA TOILE a gauche
-    l_vertical_tab = l_repos_vertical * np.ones(m * (n - 1))
-
-    #ressorts obliques internes a la toile :
-    l_repos_croix=l_croix*np.ones(Nb_ressorts_croix)
-    k_croix_tab=k_croix*np.ones(Nb_ressorts_croix)
-
-    k = np.append(k_horizontaux, k_verticaux)
-    k = np.append(k_bord, k)
-
-    l_repos = np.append(l_horizontal_tab, l_vertical_tab)
-    l_repos = np.append(l_bord_tab, l_repos)
-
-    # CALCUL DES MASSES : (pas pris en compte la masse ajoutee par lathlete)
-    mcoin = 1.803  # masse d'un point se trouvant sur un coin de la toile
-    mpetit = 0.5 * 5.695 / (m - 2)  # masse d'un point se trouvant sur le petit cote de la toile
-    mgrand = 0.5 * 9.707 / (n - 2)  # masse d'un point se trouvant sur le grand cote de la toile
-    mmilieu = 3 * 0.650 / ((n - 2) * (m - 2))  # masse d'un point se trouvant au milieu de la toile
-
-    M = mmilieu * np.ones(n * m)  # on initialise toutes les masses a celle du centre
-    M[0], M[n - 1], M[n * (m - 1)], M[n * m - 1] = mcoin, mcoin, mcoin, mcoin
-    M[n:n * (m - 1):n] = mpetit  # masses du cote bas
-    M[2 * n - 1:n * m - 1:n] = mpetit  # masses du cote haut
-    M[1:n - 1] = mgrand  # masse du cote droit
-    M[n * (m - 1) + 1:n * m - 1] = mgrand  # masse du cote gauche
-    M[int((m*n-1)/2)]+=Masse_centre
-
+    Pt_ancrage, Pos_repos=Points_ancrage_repos()
+    k, l_repos, M, k_croix_tab, l_repos_croix=Param()
     ###################################################################################################################
 
     Pt = Optimisation_toile(Masse_centre, Pt_ancrage, k, M, l_repos, Pos_repos,k_croix_tab,l_repos_croix)
