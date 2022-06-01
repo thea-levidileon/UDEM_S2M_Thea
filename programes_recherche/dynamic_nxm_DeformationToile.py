@@ -1,22 +1,21 @@
 import numpy as np
-import numpy.matlib
-import sys
+# import numpy.matlib
+# import sys
 #import ipopt
 # sys.path.append('/home/user/anaconda3/envs/qpoases/lib')
 # sys.path.append('/home/user/anaconda3/envs/qpoases/include/casadi/build/lib')
-import casadi as cas
+# import casadi as cas
 # from casadi import MX, SX, sqrt
 # import biorbd
 import matplotlib.pyplot as plt
 # from os.path import dirname, join as pjoin
 # import scipy.io as sio
-from IPython import embed
-from mpl_toolkits import mplot3d
+# from IPython import embed
+# from mpl_toolkits import mplot3d
 
 n=15 #nombre de mailles sur le grand cote
 m=9#nombre de mailles sur le petit cote
 Masse_centre=150
-PLT_FLAG=0
 
 Nb_ressorts=2*n*m+n+m #nombre de ressorts non obliques total dans le modele
 Nb_ressorts_cadre=2*n+2*m #nombre de ressorts entre le cadre et la toile
@@ -43,26 +42,26 @@ ind_milieu_haut_gauche= int((m * n - 1) / 2 + n + 1)
 ind_milieu_bas_gauche= int((m * n - 1) / 2 + n - 1)
 
 
-def Points_ancrage_repos () :
+def Points_ancrage_repos (Nb_increments) :
     # ancrage :
-    Pt_ancrage = np.zeros((Nb_ressorts_cadre,3))
+    Pt_ancrage = np.zeros((Nb_increments,Nb_ressorts_cadre,3))
     # cote droit :
     for i in range(n):
-        Pt_ancrage[i,:] = np.array([l_cadre, -L_toile + i * dL, 0])
+        Pt_ancrage[:,i,:] = np.array([l_cadre, -L_toile + i * dL, 0])
     # cote haut :
     for j in range(n, n + m):
-        Pt_ancrage[j,:] = np.array([l_toile - (j - n) * dl, L_cadre, 0])
+        Pt_ancrage[:,j,:] = np.array([l_toile - (j - n) * dl, L_cadre, 0])
     # cote gauche :
     for k in range(n + m, 2 * n + m):
-        Pt_ancrage[k,:] = np.array([-l_cadre, L_toile - (k - m - n) * dL, 0])
+        Pt_ancrage[:,k,:] = np.array([-l_cadre, L_toile - (k - m - n) * dL, 0])
     # cote bas :
     for h in range(2 * n + m, Nb_ressorts_cadre):
-        Pt_ancrage[h,:] = np.array([-l_toile + (h - 2 * n - m) * dl, -L_cadre, 0])
+        Pt_ancrage[:,h,:] = np.array([-l_toile + (h - 2 * n - m) * dl, -L_cadre, 0])
 
     #repos
-    Pos_repos = np.zeros((n*m, 3))
+    Pos_repos = np.zeros((Nb_increments,n*m, 3))
     for i in range(n*m):
-        Pos_repos[i,:] = np.array([l_toile - (i // n) * dl, -L_toile + (i % n) * dL, 0])
+        Pos_repos[:,i,:] = np.array([l_toile - (i // n) * dl, -L_toile + (i % n) * dL, 0])
 
     return Pt_ancrage,Pos_repos
 
@@ -143,340 +142,215 @@ def Param () :
 
 def Spring_bouts(Pt,Pt_ancrage,time,Nb_increments):
     # Definition des ressorts (position, taille)
-    Spring_bout_1 = []
+    Spring_bout_1=np.zeros((Nb_increments,Nb_ressorts,3))
 
     # RESSORTS ENTRE LE CADRE ET LA TOILE
     for i in range(0, Nb_ressorts_cadre):
-        Spring_bout_1 = np.hstack((Spring_bout_1, Pt_ancrage[i]))
+        Spring_bout_1[time,i,:] = Pt_ancrage[time-1,i, :]
 
     # RESSORTS HORIZONTAUX : il y en a n*(m-1)
     for i in range(Nb_ressorts_horz):
-        Spring_bout_1 = np.hstack((Spring_bout_1, Pt[time,i]))
+        Spring_bout_1[time,Nb_ressorts_cadre + i,:] = Pt[time-1,i,:]
 
     # RESSORTS VERTICAUX : il y en a m*(n-1)
+    k=0
     for i in range(n - 1):
         for j in range(m):
-            Spring_bout_1 = np.concatenate((Spring_bout_1, Pt[time,i + n * j,:]))
-
-    Spring_bout_2 = []
+            Spring_bout_1[time,Nb_ressorts_cadre+Nb_ressorts_horz+k, :] = Pt[time-1,i + n * j,:]
+            k+=1
+####################################################################################################################
+    Spring_bout_2=np.zeros((Nb_increments,Nb_ressorts,3))
 
     # RESSORTS ENTRE LE CADRE ET LA TOILE
-    for i in range(0, n):
-        Spring_bout_2 = np.concatenate((Spring_bout_2, Pt[time,i,:]))  # points droite du bord de la toile
-    for i in range(n - 1, m * n, n):
-        Spring_bout_2 = np.concatenate((Spring_bout_2, Pt[time,i,:]))  # points hauts du bord de la toile
-    for i in range(m*n-1,n * (m - 1)-1, -1):
-        Spring_bout_2 = np.concatenate((Spring_bout_2, Pt[time,i,:]))  # points gauche du bord de la toile
-    for i in range(n * (m - 1), -1, -n):
-        Spring_bout_2 = np.concatenate((Spring_bout_2, Pt[time,i,:]))  # points bas du bord de la toile
+    for i in range(0, n): # points droite du bord de la toile
+        Spring_bout_2[time,i,:] = Pt[time-1,i,:]
+
+    k=0
+    for i in range(n - 1, m * n, n): # points hauts du bord de la toile
+        Spring_bout_2[time, n+k, :] = Pt[time-1, i, :]
+        k+=1
+
+    k=0
+    for i in range(m*n-1,n * (m - 1)-1, -1): # points gauche du bord de la toile
+        Spring_bout_2[time, n + m + k, :] = Pt[time-1, i, :]
+        k+=1
+
+    k=0
+    for i in range(n * (m - 1), -1, -n): # points bas du bord de la toile
+        Spring_bout_2[time, 2*n + m + k, :] = Pt[time-1, i, :]
+        k+=1
 
     # RESSORTS HORIZONTAUX : il y en a n*(m-1)
+    k=0
     for i in range(n, n * m):
-        Spring_bout_2 = np.concatenate((Spring_bout_2, Pt[time,i,:]))
+        Spring_bout_2[time,Nb_ressorts_cadre + k,:] = Pt[time-1,i,:]
+        k+=1
 
     # RESSORTS VERTICAUX : il y en a m*(n-1)
+    k=0
     for i in range(1, n):
         for j in range(m):
-            Spring_bout_2 = np.concatenate((Spring_bout_2, Pt[time,i + n * j,:]))
-
-    Spring_bout_2=np.reshape(Spring_bout_2,(Nb_increments,3,Nb_ressorts))
-    Spring_bout_1 = np.reshape(Spring_bout_1, (Nb_increments,3, Nb_ressorts))
+            Spring_bout_2[time,Nb_ressorts_cadre + Nb_ressorts_horz + k,:] = Pt[time-1,i + n * j,:]
+            k+=1
 
     return (Spring_bout_1,Spring_bout_2)
 
 def Spring_bouts_croix(Pt,time,Nb_increments):
     #RESSORTS OBLIQUES : il n'y en a pas entre le cadre et la toile
+    Spring_bout_croix_1=np.zeros((Nb_increments,Nb_ressorts_croix,3))
 
-    Spring_bout_croix_1=[]
     #Pour spring_bout_1 on prend uniquement les points de droite des ressorts obliques
+    k=0
     for i in range ((m-1)*n):
-        Spring_bout_croix_1=np.concatenate((Spring_bout_croix_1,Pt[time,i,:]))
+        Spring_bout_croix_1[time,k,:]=Pt[time-1,i,:]
+        k += 1
         #a part le premier et le dernier de chaque colonne, chaque point est relie a deux ressorts obliques
         if (i+1)%n!=0 and i%n!=0 :
-            Spring_bout_croix_1 = np.concatenate((Spring_bout_croix_1, Pt[time,i,:]))
+            Spring_bout_croix_1[time, k, :] = Pt[time-1, i, :]
+            k+=1
 
-    Spring_bout_croix_2=[]
+    Spring_bout_croix_2=np.zeros((Nb_increments,Nb_ressorts_croix,3))
     #Pour spring_bout_2 on prend uniquement les points de gauche des ressorts obliques
     #pour chaue carre on commence par le point en haut a gauche, puis en bas a gauche
     #cetait un peu complique mais ca marche, faut pas le changer
     j=1
+    k = 0
     while j<m:
         for i in range (j*n,(j+1)*n-2,2):
-            Spring_bout_croix_2 = np.concatenate((Spring_bout_croix_2, Pt[time,i + 1,:]))
-            Spring_bout_croix_2 = np.concatenate((Spring_bout_croix_2, Pt[time,i,:]))
-            Spring_bout_croix_2 = np.concatenate((Spring_bout_croix_2, Pt[time,i+ 2,:]))
-            Spring_bout_croix_2 = np.concatenate((Spring_bout_croix_2, Pt[time,i + 1,:]))
+            Spring_bout_croix_2[time,k,:] = Pt[time-1,i + 1,:]
+            Spring_bout_croix_2[time,k+1,:] = Pt[time-1,i,:]
+            Spring_bout_croix_2[time,k+2,:] = Pt[time-1,i+ 2,:]
+            Spring_bout_croix_2[time,k+3,:] = Pt[time-1,i + 1,:]
+            k += 4
         j+=1
-
-    Spring_bout_croix_2=np.reshape(Spring_bout_croix_2,(Nb_increments,3,Nb_ressorts_croix))
-    Spring_bout_croix_1 = np.reshape(Spring_bout_croix_1, (Nb_increments,3, Nb_ressorts_croix))
-
 
     return Spring_bout_croix_1,Spring_bout_croix_2
 
-def Calc_Spring_bouts (Pos_repos,Pt,Pt_ancrage,time,Nb_increments) :
-    Spring_bout_1, Spring_bout_2 = Spring_bouts(Pt[time], Pt_ancrage,time,Nb_increments)
-    Spring_bout_1_repos, Spring_bout_2_repos = Spring_bouts(Pos_repos, Pt_ancrage,time,Nb_increments)
-    Spring_bout_croix_1, Spring_bout_croix_2 = Spring_bouts_croix(Pt[time],time,Nb_increments)
-    Spring_bout_croix_1_repos, Spring_bout_croix_2_repos = Spring_bouts_croix(Pos_repos,time,Nb_increments)
 
-    Spring_bout_1, Spring_bout_2 = Spring_bout_1.T, Spring_bout_2.T
-    Spring_bout_1_repos, Spring_bout_2_repos = Spring_bout_1_repos.T, Spring_bout_2_repos.T
-    Spring_bout_croix_1, Spring_bout_croix_2 = Spring_bout_croix_1.T, Spring_bout_croix_2.T
-    Spring_bout_croix_1_repos, Spring_bout_croix_2_repos = Spring_bout_croix_1_repos.T, Spring_bout_croix_2_repos.T
+def ancien_Force_calc () :
+    a=1
 
-    return Spring_bout_1, Spring_bout_2, Spring_bout_1_repos, Spring_bout_2_repos, Spring_bout_croix_1, Spring_bout_croix_2, Spring_bout_croix_1_repos, Spring_bout_croix_2_repos
-
-
-def Energie_func(Pt, Pt_ancrage, k, M, l_repos,k_croix,l_repos_croix):
-
-    Spring_bout_1, Spring_bout_2=Spring_bouts(Pt,Pt_ancrage)
-    Spring_bout_croix_1, Spring_bout_croix_2=Spring_bouts_croix(Pt)
-
-    Energie = 0
-    for i in range(Nb_ressorts):
-        Energie += 0.5 * k[i] * (np.linalg.norm(Spring_bout_2[:, i] - Spring_bout_1[:, i]) - l_repos[i])**2
-    for i_croix in range (Nb_ressorts_croix):
-        Energie += 0.5 * k_croix[i_croix] * (np.linalg.norm(Spring_bout_croix_2[:, i_croix] - Spring_bout_croix_1[:, i_croix]) - l_repos_croix[i_croix]) ** 2
-
-    Energie += np.sum(M.T * 9.81 * Pt[:, 2])
-
-    # func = cas.Function('Energie_func', [Pt], [Energie]).expand()
-
-    return Energie
-
-def ForceEquilib_func(Pt, Pt_ancrage, k, M, l_repos,k_croix,l_repos_croix):
-
-    Spring_bout_1, Spring_bout_2 = Spring_bouts(Pt, Pt_ancrage)
-    Spring_bout_croix_1, Spring_bout_croix_2 = Spring_bouts_croix(Pt)
-
-    Vect_unit_dir_F = (Spring_bout_2 - Spring_bout_1) / np.linalg.norm(Spring_bout_2 - Spring_bout_1)
-    F_spring = np.zeros((3, Nb_ressorts))
-    for ispring in range(Nb_ressorts):
-        F_spring[:, ispring] = Vect_unit_dir_F[:, ispring] * k[ispring] * (
-                np.linalg.norm(Spring_bout_2[:, ispring] - Spring_bout_1[:, ispring]) - l_repos[ispring])
-
-    Vect_unit_dir_F_croix = (Spring_bout_croix_2 - Spring_bout_croix_1) / np.linalg.norm(Spring_bout_croix_2 - Spring_bout_croix_1)
-    F_spring_croix = np.zeros((3, Nb_ressorts_croix))
-    for ispring in range(Nb_ressorts_croix):
-        F_spring_croix[:, ispring] = Vect_unit_dir_F_croix[:, ispring] * k_croix[ispring] * (
-                np.linalg.norm(Spring_bout_croix_2[:, ispring] - Spring_bout_croix_1[:, ispring]) - l_repos_croix[ispring])
-
-    F_spring=np.append(F_spring,F_spring_croix)
-    # F_spring=F_spring_croix
-
-    # func = cas.Function('ForceEquilib_func', [Pt], [F_spring])  #.expand()
-
-    return F_spring
-
-def ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre,k_croix_tab,l_repos_croix):
-
-    k_4 = k[np.array([Nb_ressorts_cadre+ind_milieu_droite,
-            Nb_ressorts_cadre + Nb_ressorts_horz + ind_milieu,
-            Nb_ressorts_cadre+ ind_milieu,
-            Nb_ressorts_cadre +  Nb_ressorts_horz + ind_milieu_bas])]
-    l_repos_4 = l_repos[np.array([Nb_ressorts_cadre+ind_milieu_droite,
-                        Nb_ressorts_cadre + Nb_ressorts_horz + ind_milieu,
-                        Nb_ressorts_cadre+ ind_milieu,
-                        Nb_ressorts_cadre +  Nb_ressorts_horz + ind_milieu_bas])]
-
-    k_4_croix=k_croix_tab[np.array([ind_milieu_droite,
-                          ind_milieu_haut,
-                          ind_milieu_haut_gauche,
-                          ind_milieu_bas_gauche])]
-    l_repos_croix_4=l_repos_croix[np.array([ind_milieu_droite,
-                                  ind_milieu_haut,
-                                  ind_milieu_haut_gauche,
-                                  ind_milieu_bas_gauche])]
-
-    Spring_bout_1 = np.hstack( Pt[ind_milieu_droite,:], Pt[ind_milieu_haut,: ], Pt[ind_milieu_gauche,:], Pt[ind_milieu_bas,:])
-    Spring_bout_2 = np.hstack(Pt[ind_milieu,:], Pt[ind_milieu,:],Pt[ind_milieu,:], Pt[ind_milieu,:])
-
-    Spring_bout_croix_1=np.hstack( Pt[ind_milieu_bas_droite,:], Pt[ind_milieu_haut_droite,:], Pt[ind_milieu,:], Pt[ind_milieu,:])
-    Spring_bout_croix_2=np.hstack( Pt[ind_milieu,:], Pt[ind_milieu,:],Pt[ind_milieu_bas_gauche,:],Pt[ind_milieu_haut_gauche,:])
-
-
-    Vect_unit_dir_F = (Spring_bout_1 - Spring_bout_2) / np.linalg.norm(Spring_bout_1 - Spring_bout_2)
-    F_spring = np.zeros((3, 4))
-    for ispring in range(4):
-        F_spring[:, ispring] = Vect_unit_dir_F[:, ispring] * k_4[ispring] * (
-                    np.linalg.norm(Spring_bout_1[:, ispring] - Spring_bout_2[:, ispring]) - l_repos_4[ispring])
-
-    Vect_unit_dir_F_croix = (Spring_bout_croix_2 - Spring_bout_croix_1) / np.linalg.norm(
-        Spring_bout_croix_2 - Spring_bout_croix_1)
-    F_spring_croix = np.zeros((3, 4))
-    for ispring in range(4):
-        F_spring_croix[:, ispring] = Vect_unit_dir_F_croix[:, ispring] * k_4_croix[ispring] * (
-               np.linalg.norm(Spring_bout_croix_2[:, ispring] - Spring_bout_croix_1[:, ispring]) - l_repos_croix_4[ispring])
-
-    Force_Masse = np.zeros(3)
-    Force_Masse[2] = - (Masse_centre + M[ind_milieu]) * 9.81
-    # Force_Masse[2] = - (M[ind_milieu]) * 9.81
-
-    Force_tot = np.sum(F_spring) + np.sum(F_spring_croix) + Force_Masse
-    # func = cas.Function('ForceEquilib_func', [Pt], [Force_tot])  #.expand()
-
-    return Force_tot
-
-
-# def Optimisation_toile(Masse_centre, Pt, Pt_ancrage, k, M, l_repos, Pos_repos,k_croix_tab,l_repos_croix):
-#     Pt = cas.MX.sym('Pt', 3, n*m) #Pt est une variable que lon va utiliser dans les fonctions
-#     # Pt=cas.MX(Pt)
-#     Pt_ancrage = cas.MX(Pt_ancrage)
-#     k = cas.MX(k)
-#     M = cas.MX(M)
-#     l_repos = cas.MX(l_repos)
-#     k_croix_tab=cas.MX(k_croix_tab)
-#     l_repos_croix = cas.MX(l_repos_croix)
+# def Force_calc(Pt,Masse_centre,time,Nb_increments):
 #
-#     #fonctions utilisant come arguments toutes les variables symboliques
-#     Energie = Energie_func(Pt, Pt_ancrage, k, M, l_repos,k_croix_tab,l_repos_croix)
-#     ForceEquilib_centre = ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre,k_croix_tab,l_repos_croix)
-#     ForceEquilib = ForceEquilib_func(Pt, Pt_ancrage, k, M, l_repos,k_croix_tab,l_repos_croix)
+#     Pt_ancrage,Pos_repos=Points_ancrage_repos(time,Nb_increments)
+#     k, l_repos, M, k_croix_tab, l_repos_croix = Param()
 #
-#     w = [] #vecteur de variables
-#     w0 = [] #conditions initiales
-#     lbw = []
-#     ubw = []
-#     g = [] #contraintes
-#     lbg = []
-#     ubg = []
-#     Pt_post = cas.MX.zeros(3, n*m)
-#     for i in range(n*m):
-#         Pt_var = cas.MX.sym(f'Pt_{i}', 3) #pour chaque point, Pt_var = fonction de Pt[i]
-#         Pt_post[:, i] = Pt_var
-#         w += [Pt_var]
-#         w0 += [Pos_repos[:, i]]
-#         lbw += [Pos_repos[0, i] - 3, Pos_repos[1, i] - 3, Pos_repos[2, i] - 3] # [np.zeros(3) - 0.00001]  #
-#         ubw += [Pos_repos[0, i] + 3, Pos_repos[1, i] + 3, Pos_repos[2, i] + 3] # [np.zeros(3)+ 0.00001]  #
+#     Spring_bout_1, Spring_bout_2, Spring_bout_1_repos, Spring_bout_2_repos, Spring_bout_croix_1, Spring_bout_croix_2, \
+#     Spring_bout_croix_1_repos, Spring_bout_croix_2_repos = Calc_Spring_bouts (Pos_repos,Pt,Pt_ancrage,time,Nb_increments)
 #
-#     g += [ForceEquilib_centre(Pt_post)]
-#     lbg += [-10*np.ones(3)] # np.zeros(3) - 1e-10]
-#     ubg += [10*np.ones(3)] # np.zeros(3) + 1e-10]
+#     F_spring = np.zeros((Nb_increments,3, Nb_ressorts))
+#     Vect_unit_dir_F[time] = (Spring_bout_2[time] - Spring_bout_1[time]) / np.linalg.norm(Spring_bout_2[time] - Spring_bout_1[time])
+#     for ispring in range(Nb_ressorts):
+#         F_spring[time,:, ispring] = Vect_unit_dir_F[time,ispring, :] * k[ispring] * (
+#                 np.linalg.norm(Spring_bout_2[time,ispring, :] - Spring_bout_1[time,ispring, :]) - l_repos[time,ispring])
 #
-#     F_masses = cas.MX.zeros(3, n*m)
+#     F_spring_croix = np.zeros((Nb_increments,3, Nb_ressorts_croix))
+#     Vect_unit_dir_F_croix = (Spring_bout_croix_2[time] - Spring_bout_croix_1[time]) /np.linalg.norm(Spring_bout_croix_2[time] - Spring_bout_croix_1[time])
+#     for ispring in range(Nb_ressorts_croix):
+#         F_spring_croix[time,:, ispring] = Vect_unit_dir_F_croix[time,ispring, :] * k_croix_tab[ispring] * (
+#                 np.linalg.norm(Spring_bout_croix_2[time,ispring, :] - Spring_bout_croix_1[time,ispring, :]) - l_repos_croix[ispring])
+#
+#     F_masses = np.zeros((3, n*m))
 #     F_masses[2, :] = - M * 9.81
 #
-#     F_spring = ForceEquilib(Pt_post)
-#
-#     obj = Energie(Pt_post) # + Eq_Obj
-#
-#     qp = {'x': cas.vertcat(*w), 'f': obj, 'g':  cas.vertcat(*g)}
-#     solver = cas.nlpsol('solver', 'ipopt', qp) #chercher sur intenret doc casadi, chercher exeples ipopt
-#     sol = solver(x0=cas.vertcat(*w0), lbg=cas.vertcat(*lbg), ubg=cas.vertcat(*ubg), lbx=cas.vertcat(*lbw), ubx=cas.vertcat(*ubw))
-#
-#     Solution = sol['x']
-#
-#     Pt = np.zeros((3, n*m)) #la on fait sortir le vrai Pt, pas juste symbolique
-#     for j in range(n*m):
-#         Pt[:, j] = np.reshape(Solution[3*j : 3*j + 3], (3)) #Pt prend la valeur de la solution optimale
-#
-#     return Pt
+#   return M,F_spring, F_spring_croix,F_masses
+    return a
 
 
-def Force_calc(Pt,Masse_centre,time,Nb_increments):
+def Force_calc(Spring_bout_1,Spring_bout_2,Spring_bout_croix_1,Spring_bout_croix_2,Masse_centre,time,Nb_increments):
 
-    Pt_ancrage,Pos_repos=Points_ancrage_repos()
+    # Pt_ancrage,Pos_repos=Points_ancrage_repos(time,Nb_increments)
     k, l_repos, M, k_croix_tab, l_repos_croix = Param()
-    # Pt = Optimisation_toile(Masse_centre,Pt,Pt_ancrage, k, M, l_repos, Pos_repos,k_croix_tab,l_repos_croix)
 
-    Spring_bout_1, Spring_bout_2, Spring_bout_1_repos, Spring_bout_2_repos, Spring_bout_croix_1, Spring_bout_croix_2, \
-    Spring_bout_croix_1_repos, Spring_bout_croix_2_repos = Calc_Spring_bouts (Pos_repos,Pt,Pt_ancrage,time,Nb_increments)
+    # Spring_bout_1, Spring_bout_2, Spring_bout_1_repos, Spring_bout_2_repos, Spring_bout_croix_1, Spring_bout_croix_2, \
+    # Spring_bout_croix_1_repos, Spring_bout_croix_2_repos = Calc_Spring_bouts (Pos_repos,Pt,Pt_ancrage,time,Nb_increments)
 
-    F_spring = np.zeros((Nb_increments,3, Nb_ressorts))
-    Vect_unit_dir_F[time] = (Spring_bout_2[time] - Spring_bout_1[time]) / np.linalg.norm(Spring_bout_2[time] - Spring_bout_1[time])
+    F_spring = np.zeros((Nb_ressorts,3))
+    Vect_unit_dir_F = (Spring_bout_2 - Spring_bout_1) / np.linalg.norm(Spring_bout_2 - Spring_bout_1)
     for ispring in range(Nb_ressorts):
-        F_spring[time,:, ispring] = Vect_unit_dir_F[time,ispring, :] * k[ispring] * (
-                np.linalg.norm(Spring_bout_2[time,ispring, :] - Spring_bout_1[time,ispring, :]) - l_repos[time,ispring])
+        F_spring[ispring,:] = Vect_unit_dir_F[ispring, :] * k[ispring] * (
+                np.linalg.norm(Spring_bout_2[ispring, :] - Spring_bout_1[ispring, :]) - l_repos[ispring])
 
-    F_spring_croix = np.zeros((Nb_increments,3, Nb_ressorts_croix))
-    Vect_unit_dir_F_croix = (Spring_bout_croix_2[time] - Spring_bout_croix_1[time]) /np.linalg.norm(Spring_bout_croix_2[time] - Spring_bout_croix_1[time])
+    F_spring_croix = np.zeros((Nb_ressorts_croix,3))
+    Vect_unit_dir_F_croix = (Spring_bout_croix_2 - Spring_bout_croix_1) /np.linalg.norm(Spring_bout_croix_2 - Spring_bout_croix_1)
     for ispring in range(Nb_ressorts_croix):
-        F_spring_croix[time,:, ispring] = Vect_unit_dir_F_croix[time,ispring, :] * k_croix_tab[ispring] * (
-                np.linalg.norm(Spring_bout_croix_2[time,ispring, :] - Spring_bout_croix_1[time,ispring, :]) - l_repos_croix[ispring])
+        F_spring_croix[ispring,:] = Vect_unit_dir_F_croix[ispring, :] * k_croix_tab[ispring] * (
+                np.linalg.norm(Spring_bout_croix_2[ispring, :] - Spring_bout_croix_1[ispring, :]) - l_repos_croix[ispring])
 
-    F_masses = np.zeros((3, n*m))
-    F_masses[2, :] = - M * 9.81
+    F_masses = np.zeros((n*m,3))
+    F_masses[:,2] = - M * 9.81
 
     return M,F_spring, F_spring_croix,F_masses
 
 
-def Force_point(Pt,Masse_centre,time,Nb_increments) : #--> resultante des forces en chaque point a un instant donne
-    # Pos_repos, Pt_ancrage, M, k, l_repos, k_croix_tab,l_repos_croix, F_spring, F_spring_croix, F_masses = Force_calc(Pt,Masse_centre)
+def Force_point(F_spring,F_spring_croix,F_masses,time,Nb_increments) : #--> resultante des forces en chaque point a un instant donne
 
-    M,F_spring, F_spring_croix, F_masses = Force_calc(Pt, Masse_centre,time,Nb_increments)
-    # Pt_ancrage,Pos_repos=Points_ancrage_repos()
-
-    # Spring_bout_1, Spring_bout_2, Spring_bout_1_repos, Spring_bout_2_repos, Spring_bout_croix_1, Spring_bout_croix_2, Spring_bout_croix_1_repos, Spring_bout_croix_2_repos = Calc_Spring_bouts (Pos_repos,Pt,Pt_ancrage)
-
-    #forces de masse : deja calculees avant dans force calc
-    # F_masses = np.zeros((3, n * m))
-    # F_masses[2, :] = - M * 9.81
+    # M,F_spring, F_spring_croix, F_masses = Force_calc(Pt, Masse_centre,time,Nb_increments)
 
     #forces elastiques
-    F_spring_points = np.zeros((Nb_increments,3, n * m))
+    F_spring_points = np.zeros((n*m,3))
 
     # - points des coin de la toile : VERIFIE CEST OK
-    F_spring_points[time,:,0]=F_spring[time,:,0]+\
-                         F_spring[time,:,Nb_ressorts_cadre-1]+\
-                         F_spring[time,:,Nb_ressorts_cadre]+ \
-                         F_spring[time,:,Nb_ressorts_cadre+Nb_ressorts_horz] +\
-                         F_spring_croix[time,:,0]# en bas a droite : premier ressort du cadre + dernier ressort du cadre + premiers ressorts horz, vert et croix
-    F_spring_points[time,:, n-1] = F_spring[time,:,n-1] +\
-                              F_spring[time,:, n] + \
-                              F_spring[time,:, Nb_ressorts_cadre + n - 1] + \
-                              F_spring[time,:, Nb_ressorts_cadre + Nb_ressorts_horz + Nb_ressorts_vert-m] + \
-                              F_spring_croix[time,:,2*(n-1)-1]  # en haut a droite
-    F_spring_points[time,:, (m-1)*n] = F_spring[time,:, 2*n+m-1] +\
-                                  F_spring[time,:, 2*n+m] + \
-                                  F_spring[time,:, Nb_ressorts_cadre + Nb_ressorts_horz-n] + \
-                                  F_spring[time,:, Nb_ressorts_cadre + Nb_ressorts_horz + m-1] + \
-                                  F_spring_croix[time,:, Nb_ressorts_croix - 2*(n-1) +1]  # en bas a gauche
-    F_spring_points[time,:, m* n-1] = F_spring[time,:, n + m - 1] + \
-                                 F_spring[time,:, n + m ] + \
-                                 F_spring[time,:, Nb_ressorts_cadre + Nb_ressorts_horz-1] + \
-                                 F_spring[time,:, Nb_ressorts-1] + \
-                                 F_spring_croix[time,:, Nb_ressorts_croix-2]  # en haut a gauche
+    F_spring_points[0,:]=F_spring[0,:]+\
+                         F_spring[Nb_ressorts_cadre-1,:]+\
+                         F_spring[Nb_ressorts_cadre,:]+ \
+                         F_spring[Nb_ressorts_cadre+Nb_ressorts_horz,:] +\
+                         F_spring_croix[0,:]# en bas a droite : premier ressort du cadre + dernier ressort du cadre + premiers ressorts horz, vert et croix
+    F_spring_points[n-1,:] = F_spring[n-1,:] +\
+                              F_spring[n,:] + \
+                              F_spring[ Nb_ressorts_cadre + n - 1,:] + \
+                              F_spring[ Nb_ressorts_cadre + Nb_ressorts_horz + Nb_ressorts_vert-m,:] + \
+                              F_spring_croix[2*(n-1)-1,:]  # en haut a droite
+    F_spring_points[ (m-1)*n,:] = F_spring[ 2*n+m-1,:] +\
+                                  F_spring[ 2*n+m,:] + \
+                                  F_spring[ Nb_ressorts_cadre + Nb_ressorts_horz-n,:] + \
+                                  F_spring[ Nb_ressorts_cadre + Nb_ressorts_horz + m-1,:] + \
+                                  F_spring_croix[ Nb_ressorts_croix - 2*(n-1) +1,:]  # en bas a gauche
+    F_spring_points[ m* n-1,:] = F_spring[ n + m - 1,:] + \
+                                 F_spring[ n + m,: ] + \
+                                 F_spring[ Nb_ressorts_cadre + Nb_ressorts_horz-1,:] + \
+                                 F_spring[ Nb_ressorts-1,:] + \
+                                 F_spring_croix[ Nb_ressorts_croix-2,:]  # en haut a gauche
 
     # - points du bord de la toile> Pour lordre des termes de la somme, on part du ressort cadre puis sens trigo
             # - cote droit VERIFIE CEST OK
     for i in range (1,n-1):
-        F_spring_points[time,:, i] = F_spring[time,:, i] + \
-                                F_spring[time,:,Nb_ressorts_cadre + Nb_ressorts_horz + m * i] + \
-                                F_spring_croix[time,:, 2 * (i - 1) + 1] + \
-                                F_spring[time,:, Nb_ressorts_cadre + i] + \
-                                F_spring_croix[time,:, 2 * (i - 1)+2] + \
-                                F_spring[time,:,Nb_ressorts_cadre + Nb_ressorts_horz + m * (i - 1)]
+        F_spring_points[ i,:] = F_spring[ i,:] + \
+                                F_spring[Nb_ressorts_cadre + Nb_ressorts_horz + m * i,:] + \
+                                F_spring_croix[ 2 * (i - 1) + 1,:] + \
+                                F_spring[ Nb_ressorts_cadre + i,:] + \
+                                F_spring_croix[ 2 * (i - 1)+2,:] + \
+                                F_spring[Nb_ressorts_cadre + Nb_ressorts_horz + m * (i - 1),:]
             # - cote gauche VERIFIE CEST OK
     j=0
     for i in range((m-1)*n+1, m*n-1):
-        F_spring_points[time,:,i]=F_spring[time,:,Nb_ressorts_cadre - m - (2+j)] + \
-                             F_spring[time,:,Nb_ressorts_cadre+Nb_ressorts_horz+(j+1)*m-1]+ \
-                             F_spring_croix[time,:,Nb_ressorts_croix-2*n+1+2*(j+2)]+\
-                             F_spring[time,:,Nb_ressorts_cadre+Nb_ressorts_horz-n+j+1]+\
-                             F_spring_croix[time,:,Nb_ressorts_croix-2*n+2*(j+1)]+\
-                             F_spring[time,:,Nb_ressorts_cadre+Nb_ressorts_horz+(j+2)*m-1]
+        F_spring_points[i,:]=F_spring[Nb_ressorts_cadre - m - (2+j),:] + \
+                             F_spring[Nb_ressorts_cadre+Nb_ressorts_horz+(j+1)*m-1,:]+ \
+                             F_spring_croix[Nb_ressorts_croix-2*n+1+2*(j+2),:]+\
+                             F_spring[Nb_ressorts_cadre+Nb_ressorts_horz-n+j+1,:]+\
+                             F_spring_croix[Nb_ressorts_croix-2*n+2*(j+1),:]+\
+                             F_spring[Nb_ressorts_cadre+Nb_ressorts_horz+(j+2)*m-1,:]
         j+=1
 
             # - cote haut VERIFIE CEST OK
     j=0
     for i in range (2*n-1,(m-1)*n,n) :
-        F_spring_points[time,:, i]= F_spring[time,:, n+1+j] + \
-                               F_spring[time,:, Nb_ressorts_cadre + i] + \
-                               F_spring_croix[time,:,(j+2)*(n-1)*2-1]+\
-                               F_spring[time,:,Nb_ressorts_cadre + Nb_ressorts_horz + (Nb_ressorts_vert+1) - (m-j)] +\
-                               F_spring_croix[time,:,(j+1)*(n-1)*2-2]+\
-                               F_spring[time,:, Nb_ressorts_cadre + i-n]
+        F_spring_points[ i,:]= F_spring[ n+1+j,:] + \
+                               F_spring[ Nb_ressorts_cadre + i,:] + \
+                               F_spring_croix[(j+2)*(n-1)*2-1,:]+\
+                               F_spring[Nb_ressorts_cadre + Nb_ressorts_horz + (Nb_ressorts_vert+1) - (m-j),:] +\
+                               F_spring_croix[(j+1)*(n-1)*2-2,:]+\
+                               F_spring[ Nb_ressorts_cadre + i-n,:]
         j+=1
             # - cote bas VERIFIE CEST OK
     j=0
     for i in range (n,(m-2)*n+1,n) :
-        F_spring_points[time,:, i] = F_spring[time,:, Nb_ressorts_cadre-(2+j)] + \
-                                F_spring[time,:, Nb_ressorts_cadre + n*j]+\
-                                F_spring_croix[time,:,1+2*(n-1)*j]+\
-                                F_spring[time,:,Nb_ressorts_cadre+Nb_ressorts_horz+j+1]+\
-                                F_spring[time,:,2*(n-1)*(j+1)]+\
-                                F_spring[time,:, Nb_ressorts_cadre + n*(j+1)]
+        F_spring_points[ i,:] = F_spring[ Nb_ressorts_cadre-(2+j),:] + \
+                                F_spring[ Nb_ressorts_cadre + n*j,:]+\
+                                F_spring_croix[1+2*(n-1)*j,:]+\
+                                F_spring[Nb_ressorts_cadre+Nb_ressorts_horz+j+1,:]+\
+                                F_spring[2*(n-1)*(j+1),:]+\
+                                F_spring[ Nb_ressorts_cadre + n*(j+1),:]
         j+=1
 
     #Points du centre de la toile (tous les points qui ne sont pas en contact avec le cadre)
@@ -484,170 +358,154 @@ def Force_point(Pt,Masse_centre,time,Nb_increments) : #--> resultante des forces
     #dans lordre de la somme : ressort horizontal de droite puis sens trigo
     for j in range (1,m-1):
         for i in range (1,n-1) :
-            F_spring_points[time,:,j*n+i]=F_spring[time,:,Nb_ressorts_cadre+(j-1)*n+i] + \
-                                     F_spring_croix[time,:,2*j*(n-1) - 2*n + 3 + 2*i]+\
-                                     F_spring[time,:,Nb_ressorts_cadre+Nb_ressorts_horz + m*i + j]+\
-                                     F_spring_croix[time,:,j*2*(n-1) + i*2]+\
-                                     F_spring[time,:, Nb_ressorts_cadre + j * n + i]+\
-                                     F_spring_croix[time,:,j*2*(n-1) + i*2 -1]+\
-                                     F_spring[time,:,Nb_ressorts_cadre+Nb_ressorts_horz + m*(i-1) + j]+\
-                                     F_spring_croix[time,:,j*2*(n-1) -2*n + 2*i]
+            F_spring_points[j*n+i,:]=F_spring[Nb_ressorts_cadre+(j-1)*n+i,:] + \
+                                     F_spring_croix[2*j*(n-1) - 2*n + 3 + 2*i,:]+\
+                                     F_spring[Nb_ressorts_cadre+Nb_ressorts_horz + m*i + j,:]+\
+                                     F_spring_croix[j*2*(n-1) + i*2,:]+\
+                                     F_spring[ Nb_ressorts_cadre + j * n + i,:]+\
+                                     F_spring_croix[j*2*(n-1) + i*2 -1,:]+\
+                                     F_spring[Nb_ressorts_cadre+Nb_ressorts_horz + m*(i-1) + j,:]+\
+                                     F_spring_croix[j*2*(n-1) -2*n + 2*i,:]
     F_point=F_masses+F_spring_points
     return F_point
 
+def Etat_initial(Pt_ancrage,Pos_repos,Nb_increments,fig) :
+    # Pt_ancrage, Pos_repos = Points_ancrage_repos(Nb_increments)
+    Pt[0, :, :] = Pos_repos[0, :, :]
+
+    Spring_bout_1, Spring_bout_2 = Spring_bouts(Pt, Pt_ancrage, 1, Nb_increments)
+    Spring_bout_croix_1, Spring_bout_croix_2 = Spring_bouts_croix(Pt, 1, Nb_increments)
+    Spb1, Spb2 = Spring_bout_1[1, :, :], Spring_bout_2[1, :, :]
+    Spbc1, Spbc2 = Spring_bout_croix_1[1, :, :], Spring_bout_croix_2[1, :, :]
+
+    ax = fig.add_subplot(int(T_total / (2 * dt)), int(T_total / (2 * dt)), 1, projection='3d')
+    # ax = fig.add_subplot(1,1, 1, projection='3d')
+    ax.set_box_aspect([1.1, 1.8, 1])
+    ax.plot(Pt[0, :, 0], Pt[0, :, 1], Pt[0, :, 2], '.b')
+    ax.plot(Pt_ancrage[0, :, 0], Pt_ancrage[0, :, 1], Pt_ancrage[0, :, 2], '.k')
+
+    for j in range(Nb_ressorts):
+        # pqs tres elegant mais cest le seul moyen pour que ca fonctionne
+        a = []
+        a = np.append(a, Spb1[j, 0])
+        a = np.append(a, Spb2[j, 0])
+
+        b = []
+        b = np.append(b, Spb1[j, 1])
+        b = np.append(b, Spb2[j, 1])
+
+        c = []
+        c = np.append(c, Spb1[j, 2])
+        c = np.append(c, Spb2[j, 2])
+
+        ax.plot3D(a, b, c, '-r', linewidth=1)
+
+    for j in range(Nb_ressorts_croix):
+        # pqs tres elegant mais cest le seul moyen pour que ca fonctionne
+        a = []
+        a = np.append(a, Spbc1[j, 0])
+        a = np.append(a, Spbc2[j, 0])
+
+        b = []
+        b = np.append(b, Spbc1[j, 1])
+        b = np.append(b, Spbc2[j, 1])
+
+        c = []
+        c = np.append(c, Spbc1[j, 2])
+        c = np.append(c, Spbc2[j, 2])
+
+        ax.plot3D(a, b, c, '-g', linewidth=1)
+
+    plt.title('temps = ' + str(0))
+    ax.axes.set_xlim3d(left=-2, right=2)
+    ax.axes.set_ylim3d(bottom=-3, top=3)
+    ax.axes.set_zlim3d(bottom=-1000, top=1000)
+    ax.set_xlabel('x (m)')
+    ax.set_ylabel('y (m)')
+    ax.set_zlabel('z (m)')
+    #plt.show()
+    return Spb1,Spb2,Spbc1,Spbc2
+
+def Affichage(Pt,Pt_ancrage,Spb1,Spb2,Spbc1,Spbc2,time,fig) :
+    ax = fig.add_subplot(int(T_total / (2 * dt)), int(T_total / (2 * dt)), time + 1, projection='3d')
+    ax.set_box_aspect([1.1, 1.8, 1])
+    ax.plot(Pt[time, :, 0], Pt[time, :, 1], Pt[time, :, 2], '.b')
+    ax.plot(Pt_ancrage[time, :, 0], Pt_ancrage[time, :, 1], Pt_ancrage[time, :, 2], '.k')
+
+    for j in range(Nb_ressorts):
+        a = []
+        a = np.append(a, Spb1[j, 0])
+        a = np.append(a, Spb2[j, 0])
+
+        b = []
+        b = np.append(b, Spb1[j, 1])
+        b = np.append(b, Spb2[j, 1])
+
+        c = []
+        c = np.append(c, Spb1[j, 2])
+        c = np.append(c, Spb2[j, 2])
+
+        ax.plot3D(a, b, c, '-r', linewidth=1)
+
+    for j in range(Nb_ressorts_croix):
+        a = []
+        a = np.append(a, Spbc1[j, 0])
+        a = np.append(a, Spbc2[j, 0])
+
+        b = []
+        b = np.append(b, Spbc1[j, 1])
+        b = np.append(b, Spbc2[j, 1])
+
+        c = []
+        c = np.append(c, Spbc1[j, 2])
+        c = np.append(c, Spbc2[j, 2])
+
+        ax.plot3D(a, b, c, '-g', linewidth=1)
+
+    plt.title('temps = ' + str(time) + ' s')
+    # ax.axes.set_xlim3d(left=-2, right=2)
+    # ax.axes.set_ylim3d(bottom=-3, top=3)
+    # ax.axes.set_zlim3d(bottom=-1000, top=1000)
+    ax.set_xlabel('x (m)')
+    ax.set_ylabel('y (m)')
+    ax.set_zlabel('z (m)')
+    # plt.show()
+
 ###############################################################################
+
 #PARAMETRES POUR LA DYNAMIQUE :
 dt = 1
-T_total = 3
+T_total = 4
 Nb_increments=int(T_total/dt)
 
 Pt = np.zeros((Nb_increments, n*m,3))
 vitesse = np.zeros((Nb_increments, n*m,3))
 accel = np.zeros((Nb_increments, n*m,3))
 
-# Pt=[]
-# vitese=[]
-# accel=[]
-
-Pt_ancrage,Pos_repos=Points_ancrage_repos()
-
-Pt[0]=Pos_repos
-
-M,F_spring, F_spring_croix, F_masses = Force_calc(Pos_repos,Masse_centre,0,Nb_increments)
-F_point=Force_point(Pos_repos,Masse_centre,0,Nb_increments)
-
-
-
-# Pt[0, :, :] = Pos_repos[:, :]
-Spring_bout_1, Spring_bout_2, Spring_bout_1_repos, Spring_bout_2_repos, Spring_bout_croix_1,Spring_bout_croix_2,\
-Spring_bout_croix_1_repos, Spring_bout_croix_2_repos = Calc_Spring_bouts (Pos_repos,Pos_repos,Pt_ancrage)
-
+Pt_ancrage, Pos_repos = Points_ancrage_repos(Nb_increments)
 #######################################################################################################################
-# #AFFICHAGE ETAT INITIAL
-#
+
+#BOUCLE TEMPORELLE
 fig = plt.figure()
 
-ax = fig.add_subplot(1,int(T_total / dt),1, projection='3d')
-ax.set_box_aspect([1.1, 1.8, 1])
-ax.plot(Pos_repos[0, :], Pos_repos[1, :], Pos_repos[2, :], '.b')
-ax.plot(Pt_ancrage[0, :], Pt_ancrage[1, :], Pt_ancrage[2, :], '.k')
-# point du milieu  :
-ax.plot(Pos_repos[ind_milieu,0], Pos_repos[ind_milieu,1], Pos_repos[ind_milieu,2], '.y')
-
-# ressorts entre le cadre et la toile :
-# for j in range (2*(m+n)):
-for j in range(Nb_ressorts):
-    #pqs tres elegant mais cest le seul moyen pour que ca fonctionne
-    a = []
-    a = np.append(a, Spring_bout_1_repos[j, 0])
-    a = np.append(a, Spring_bout_2_repos[j, 0])
-
-    b = []
-    b = np.append(b, Spring_bout_1_repos[j, 1])
-    b = np.append(b, Spring_bout_2_repos[j, 1])
-
-    c = []
-    c = np.append(c, Spring_bout_1_repos[j, 2])
-    c = np.append(c, Spring_bout_2_repos[j, 2])
-
-    ax.plot3D(a, b, c, '-r', linewidth=1)
-
-for j in range(Nb_ressorts_croix):
-    # pqs tres elegant mais cest le seul moyen pour que ca fonctionne
-    a = []
-    a = np.append(a, Spring_bout_croix_1_repos[j, 0])
-    a = np.append(a, Spring_bout_croix_2_repos[j, 0])
-
-    b = []
-    b = np.append(b, Spring_bout_croix_1_repos[j, 1])
-    b = np.append(b, Spring_bout_croix_2_repos[j, 1])
-
-    c = []
-    c = np.append(c, Spring_bout_croix_1_repos[j, 2])
-    c = np.append(c, Spring_bout_croix_2_repos[j, 2])
-
-    ax.plot3D(a, b, c, '-g',linewidth=1)
-plt.title('t=0 ')
-ax.set_xlabel('x (m)')
-ax.set_ylabel('y (m)')
-ax.set_zlabel('z (m)')
-
-####################################################################################################################
+Spb1,Spb2,Spbc1,Spbc2 = Etat_initial(Pt_ancrage,Pos_repos,Nb_increments,fig) #--> actualise Pt[0,:,:] et fait l'affichage
 
 for time in range(1, Nb_increments):
-# for t in range(1, 2):
-    F_point = Force_point(Pt,Masse_centre)
-    accel[time, :, :] = F_point[time-1,:,:] / M[:]
-    # accel_t=F_point[:,:] / M[:]
-    # accel=np.append(accel,accel_t)
+    M,F_spring, F_spring_croix, F_masses = Force_calc(Spb1,Spb2,Spbc1,Spbc2,
+                                                    Masse_centre, time,Nb_increments)  # utilise Param()
+    F_point = Force_point(F_spring, F_spring_croix, F_masses, time, Nb_increments)
+    for index in range (n*m) :
+        accel[time, index, :] = F_point[index,:] / M[index]
     vitesse[time, :, :] = dt * accel[time, :, :] + vitesse[time - 1, :, :]
-    # vitesse_t=dt * accel_t + vitesse_t
-    # vitesse=np.append(vitesse,vitesse_t)
     Pt[time, :, :] = dt * vitesse[time, :, :] + Pt[time - 1, :, :]
-    # Pt_t=dt * vitesse_t + Pt_t
-    # Pt=np.append(Pt,Pt_t)
+
+    Spring_bout_1, Spring_bout_2 = Spring_bouts(Pt, Pt_ancrage, time, Nb_increments)
+    Spring_bout_croix_1, Spring_bout_croix_2 = Spring_bouts_croix(Pt, time, Nb_increments)
+    Spb1, Spb2 = Spring_bout_1[time, :, :], Spring_bout_2[time, :, :]
+    Spbc1, Spbc2 = Spring_bout_croix_1[time, :, :], Spring_bout_croix_2[time, :, :]
+
+    Affichage(Pt, Pt_ancrage, Spb1, Spb2, Spbc1, Spbc2, time, fig)
 
 
-    # Spring_bout_1, Spring_bout_2, Spring_bout_1_repos, Spring_bout_2_repos, Spring_bout_croix_1, Spring_bout_croix_2, \
-    # Spring_bout_croix_1_repos, Spring_bout_croix_2_repos = Calc_Spring_bouts(Pos_repos, Pt[t, :, :], Pt_ancrage)
-
-    #######################################################################################################################
-    # affichage a chaque instant
-    # ax = fig.add_subplot(1, int(T_total / dt), t+1, projection='3d')
-    # ax.set_box_aspect([1.1, 1.8, 1])
-    # ax.plot(Pt[t,0, :], Pt[t,1, :], Pt[t,2, :], '.b')
-    # ax.plot(Pt_ancrage[0, :], Pt_ancrage[1, :], Pt_ancrage[2, :], '.k')
-    #
-    # # points du milieu :
-    # ax.plot(Pt[t,0, ind_milieu], Pt[t,1, ind_milieu], Pt[t,2, ind_milieu], '.y')
-    # ax.plot(Pt[t,0, ind_milieu_droite], Pt[t,1, ind_milieu_droite], Pt[t,2, ind_milieu_droite], '.y')
-    # ax.plot(Pt[t,0, ind_milieu_haut], Pt[t,1, ind_milieu_haut], Pt[t,2, ind_milieu_haut], '.y')
-    # ax.plot(Pt[t,0, ind_milieu_gauche], Pt[t,1, ind_milieu_gauche], Pt[t,2, ind_milieu_gauche], '.y')
-    # ax.plot(Pt[t,0, ind_milieu_bas], Pt[t,1, ind_milieu_bas], Pt[t,2, ind_milieu_bas], '.y')
-    # ax.plot(Pt[t,0, ind_milieu_bas_droite], Pt[t,1, ind_milieu_bas_droite], Pt[t,2, ind_milieu_bas_droite], '.y')
-    # ax.plot(Pt[t,0, ind_milieu_haut_droite], Pt[t,1, ind_milieu_haut_droite], Pt[t,2, ind_milieu_haut_droite], '.y')
-    # ax.plot(Pt[t,0, ind_milieu_haut_gauche], Pt[t,1, ind_milieu_haut_gauche], Pt[t,2, ind_milieu_haut_gauche], '.y')
-    # ax.plot(Pt[t,0, ind_milieu_bas_gauche], Pt[t,1, ind_milieu_bas_gauche], Pt[t,2, ind_milieu_bas_gauche], '.y')
-
-    # for j in range(Nb_ressorts):
-    #     # pqs tres elegant mais cest le seul moyen pour que ca fonctionne
-    #     a = []
-    #     a = np.append(a, Spring_bout_1[j, 0])
-    #     a = np.append(a, Spring_bout_2[j, 0])
-    #
-    #     b = []
-    #     b = np.append(b, Spring_bout_1[j, 1])
-    #     b = np.append(b, Spring_bout_2[j, 1])
-    #
-    #     c = []
-    #     c = np.append(c, Spring_bout_1[j, 2])
-    #     c = np.append(c, Spring_bout_2[j, 2])
-    #
-    #     ax.plot3D(a, b, c, '-r', linewidth=1)
-    #
-    # for j in range(Nb_ressorts_croix):
-    #     # pqs tres elegant mais cest le seul moyen pour que ca fonctionne
-    #     a = []
-    #     a = np.append(a, Spring_bout_croix_1[j, 0])
-    #     a = np.append(a, Spring_bout_croix_2[j, 0])
-    #
-    #     b = []
-    #     b = np.append(b, Spring_bout_croix_1[j, 1])
-    #     b = np.append(b, Spring_bout_croix_2[j, 1])
-    #
-    #     c = []
-    #     c = np.append(c, Spring_bout_croix_1[j, 2])
-    #     c = np.append(c, Spring_bout_croix_2[j, 2])
-    #
-    #     ax.plot3D(a, b, c, '-g', linewidth=1)
-
-#     plt.title('temps = ' +str(t))
-#     ax.axes.set_xlim3d(left=-2, right=2)
-#     ax.axes.set_ylim3d(bottom=-3, top=3)
-#     ax.axes.set_zlim3d(bottom=-1000, top=1000)
-#     ax.set_xlabel('x (m)')
-#     ax.set_ylabel('y (m)')
-#     ax.set_zlabel('z (m)')
-# plt.show()
-###########
+plt.show()
 
