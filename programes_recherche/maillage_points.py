@@ -24,9 +24,17 @@ dl=2*l/(m-1)
 
 
 #repos :
-Pos_repos = np.zeros((3, n*m))
+Pos_repos = np.zeros((3, n*m + 8))
 for i in range(n*m) :
 	Pos_repos[:,i]=np.array([l-(i//n)*dl, -L+(i%n)*dL,0])
+Pos_repos[:,n*m]=np.array([dl/2,0,0])
+Pos_repos[:,n*m+1]=np.array([dl/2,dL/2,0])
+Pos_repos[:,n*m+2]=np.array([0,dL/2,0])
+Pos_repos[:,n*m+3]=np.array([-dl/2,dL/2,0])
+Pos_repos[:,n*m+4]=np.array([-dl/2,0,0])
+Pos_repos[:,n*m+5]=np.array([-dl/2,-dL/2,0])
+Pos_repos[:,n*m+6]=np.array([0,-dL/2,0])
+Pos_repos[:,n*m+7]=np.array([dl/2,-dL/2,0])
 
 
 #ancrage :
@@ -45,12 +53,14 @@ for h in range(2 * n + m, 2 * n + 2 * m):
     Pt_ancrage[:, h] = np.array([-l + (h - 2 * n - m) * dl, -L - L_ressort, 0])
 
 #points voisins du centre :
-Pt_centre=np.zeros((3,5))
+Pt_centre=np.zeros((3,5+8))
 Pt_centre[:,0]=Pos_repos[:,int((m*n-1)/2)]
 Pt_centre[:,1]=Pos_repos[:,int((m*n-1)/2-n)]
 Pt_centre[:,2]=Pos_repos[:,int((m*n-1)/2+1)]
 Pt_centre[:,3]=Pos_repos[:,int((m*n-1)/2+n)]
 Pt_centre[:,4]=Pos_repos[:,int((m*n-1)/2-1)]
+for j in range (5,13) :
+    Pt_centre[:, j] = Pos_repos[:, n*m-1 + j-4]
 
 #Affichage :
 
@@ -77,6 +87,6 @@ plt.plot(Pt_ancrage[0,:],Pt_ancrage[1,:],'.',color='red',label='points dancrage'
 plt.plot(Pt_centre[0,:],Pt_centre[1,:],'.',color='orange',label='points du centre')
 
 plt.legend()
-plt.title('Maillage '+str(m)+'x'+str(n) + ', avec '+str((m-2)*(n-2))+ ' capteurs a utiliser')
+plt.title('Maillage '+str(m)+'x'+str(n) + ', avec '+str((m-2)*(n-2))+ '+ 8 capteurs a utiliser')
 plt.axis('equal')
 plt.show()
