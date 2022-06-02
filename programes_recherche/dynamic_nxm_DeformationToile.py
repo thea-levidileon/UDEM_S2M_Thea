@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 n=15 #nombre de mailles sur le grand cote
 m=9#nombre de mailles sur le petit cote
-Masse_centre=150
+Masse_centre=0
 
 Nb_ressorts=2*n*m+n+m #nombre de ressorts non obliques total dans le modele
 Nb_ressorts_cadre=2*n+2*m #nombre de ressorts entre le cadre et la toile
@@ -140,57 +140,144 @@ def Param () :
 
     return k, l_repos, M, k_croix_tab, l_repos_croix
 
-def Spring_bouts(Pt,Pt_ancrage,time,Nb_increments):
+
+def Spring_bouts_repos(Pos_repos,Pt_ancrage,time,Nb_increments):
     # Definition des ressorts (position, taille)
     Spring_bout_1=np.zeros((Nb_increments,Nb_ressorts,3))
 
     # RESSORTS ENTRE LE CADRE ET LA TOILE
     for i in range(0, Nb_ressorts_cadre):
-        Spring_bout_1[time,i,:] = Pt_ancrage[time-1,i, :]
+        Spring_bout_1[time,i,:] = Pt_ancrage[time,i, :]
 
     # RESSORTS HORIZONTAUX : il y en a n*(m-1)
     for i in range(Nb_ressorts_horz):
-        Spring_bout_1[time,Nb_ressorts_cadre + i,:] = Pt[time-1,i,:]
+        Spring_bout_1[time,Nb_ressorts_cadre + i,:] = Pos_repos[time,i,:]
 
     # RESSORTS VERTICAUX : il y en a m*(n-1)
     k=0
     for i in range(n - 1):
         for j in range(m):
-            Spring_bout_1[time,Nb_ressorts_cadre+Nb_ressorts_horz+k, :] = Pt[time-1,i + n * j,:]
+            Spring_bout_1[time,Nb_ressorts_cadre+Nb_ressorts_horz+k, :] = Pos_repos[time,i + n * j,:]
             k+=1
 ####################################################################################################################
     Spring_bout_2=np.zeros((Nb_increments,Nb_ressorts,3))
 
     # RESSORTS ENTRE LE CADRE ET LA TOILE
     for i in range(0, n): # points droite du bord de la toile
-        Spring_bout_2[time,i,:] = Pt[time-1,i,:]
+        Spring_bout_2[time,i,:] = Pos_repos[time,i,:]
 
     k=0
     for i in range(n - 1, m * n, n): # points hauts du bord de la toile
-        Spring_bout_2[time, n+k, :] = Pt[time-1, i, :]
+        Spring_bout_2[time, n+k, :] = Pos_repos[time, i, :]
         k+=1
 
     k=0
     for i in range(m*n-1,n * (m - 1)-1, -1): # points gauche du bord de la toile
-        Spring_bout_2[time, n + m + k, :] = Pt[time-1, i, :]
+        Spring_bout_2[time, n + m + k, :] = Pos_repos[time, i, :]
         k+=1
 
     k=0
     for i in range(n * (m - 1), -1, -n): # points bas du bord de la toile
-        Spring_bout_2[time, 2*n + m + k, :] = Pt[time-1, i, :]
+        Spring_bout_2[time, 2*n + m + k, :] = Pos_repos[time, i, :]
         k+=1
 
     # RESSORTS HORIZONTAUX : il y en a n*(m-1)
     k=0
     for i in range(n, n * m):
-        Spring_bout_2[time,Nb_ressorts_cadre + k,:] = Pt[time-1,i,:]
+        Spring_bout_2[time,Nb_ressorts_cadre + k,:] = Pos_repos[time,i,:]
         k+=1
 
     # RESSORTS VERTICAUX : il y en a m*(n-1)
     k=0
     for i in range(1, n):
         for j in range(m):
-            Spring_bout_2[time,Nb_ressorts_cadre + Nb_ressorts_horz + k,:] = Pt[time-1,i + n * j,:]
+            Spring_bout_2[time,Nb_ressorts_cadre + Nb_ressorts_horz + k,:] = Pos_repos[time,i + n * j,:]
+            k+=1
+
+    return (Spring_bout_1,Spring_bout_2)
+
+def Spring_bouts_croix_repos(Pos_repos,time,Nb_increments):
+    #RESSORTS OBLIQUES : il n'y en a pas entre le cadre et la toile
+    Spring_bout_croix_1=np.zeros((Nb_increments,Nb_ressorts_croix,3))
+
+    #Pour spring_bout_1 on prend uniquement les points de droite des ressorts obliques
+    k=0
+    for i in range ((m-1)*n):
+        Spring_bout_croix_1[time,k,:]=Pos_repos[time,i,:]
+        k += 1
+        #a part le premier et le dernier de chaque colonne, chaque point est relie a deux ressorts obliques
+        if (i+1)%n!=0 and i%n!=0 :
+            Spring_bout_croix_1[time, k, :] = Pos_repos[time, i, :]
+            k+=1
+
+    Spring_bout_croix_2=np.zeros((Nb_increments,Nb_ressorts_croix,3))
+    #Pour spring_bout_2 on prend uniquement les points de gauche des ressorts obliques
+    #pour chaue carre on commence par le point en haut a gauche, puis en bas a gauche
+    #cetait un peu complique mais ca marche, faut pas le changer
+    j=1
+    k = 0
+    while j<m:
+        for i in range (j*n,(j+1)*n-2,2):
+            Spring_bout_croix_2[time,k,:] = Pos_repos[time,i + 1,:]
+            Spring_bout_croix_2[time,k+1,:] = Pos_repos[time,i,:]
+            Spring_bout_croix_2[time,k+2,:] = Pos_repos[time,i+ 2,:]
+            Spring_bout_croix_2[time,k+3,:] = Pos_repos[time,i + 1,:]
+            k += 4
+        j+=1
+
+    return Spring_bout_croix_1,Spring_bout_croix_2
+
+def Spring_bouts(Pt,Pt_ancrage,time,Nb_increments):
+    # Definition des ressorts (position, taille)
+    Spring_bout_1=np.zeros((Nb_increments,Nb_ressorts,3))
+
+    # RESSORTS ENTRE LE CADRE ET LA TOILE
+    for i in range(0, Nb_ressorts_cadre):
+        Spring_bout_1[time,i,:] = Pt_ancrage[time,i, :]
+
+    # RESSORTS HORIZONTAUX : il y en a n*(m-1)
+    for i in range(Nb_ressorts_horz):
+        Spring_bout_1[time,Nb_ressorts_cadre + i,:] = Pt[time,i,:]
+
+    # RESSORTS VERTICAUX : il y en a m*(n-1)
+    k=0
+    for i in range(n - 1):
+        for j in range(m):
+            Spring_bout_1[time,Nb_ressorts_cadre+Nb_ressorts_horz+k, :] = Pt[time,i + n * j,:]
+            k+=1
+####################################################################################################################
+    Spring_bout_2=np.zeros((Nb_increments,Nb_ressorts,3))
+
+    # RESSORTS ENTRE LE CADRE ET LA TOILE
+    for i in range(0, n): # points droite du bord de la toile
+        Spring_bout_2[time,i,:] = Pt[time,i,:]
+
+    k=0
+    for i in range(n - 1, m * n, n): # points hauts du bord de la toile
+        Spring_bout_2[time, n+k, :] = Pt[time, i, :]
+        k+=1
+
+    k=0
+    for i in range(m*n-1,n * (m - 1)-1, -1): # points gauche du bord de la toile
+        Spring_bout_2[time, n + m + k, :] = Pt[time, i, :]
+        k+=1
+
+    k=0
+    for i in range(n * (m - 1), -1, -n): # points bas du bord de la toile
+        Spring_bout_2[time, 2*n + m + k, :] = Pt[time, i, :]
+        k+=1
+
+    # RESSORTS HORIZONTAUX : il y en a n*(m-1)
+    k=0
+    for i in range(n, n * m):
+        Spring_bout_2[time,Nb_ressorts_cadre + k,:] = Pt[time,i,:]
+        k+=1
+
+    # RESSORTS VERTICAUX : il y en a m*(n-1)
+    k=0
+    for i in range(1, n):
+        for j in range(m):
+            Spring_bout_2[time,Nb_ressorts_cadre + Nb_ressorts_horz + k,:] = Pt[time,i + n * j,:]
             k+=1
 
     return (Spring_bout_1,Spring_bout_2)
@@ -202,11 +289,11 @@ def Spring_bouts_croix(Pt,time,Nb_increments):
     #Pour spring_bout_1 on prend uniquement les points de droite des ressorts obliques
     k=0
     for i in range ((m-1)*n):
-        Spring_bout_croix_1[time,k,:]=Pt[time-1,i,:]
+        Spring_bout_croix_1[time,k,:]=Pt[time,i,:]
         k += 1
         #a part le premier et le dernier de chaque colonne, chaque point est relie a deux ressorts obliques
         if (i+1)%n!=0 and i%n!=0 :
-            Spring_bout_croix_1[time, k, :] = Pt[time-1, i, :]
+            Spring_bout_croix_1[time, k, :] = Pt[time, i, :]
             k+=1
 
     Spring_bout_croix_2=np.zeros((Nb_increments,Nb_ressorts_croix,3))
@@ -217,10 +304,10 @@ def Spring_bouts_croix(Pt,time,Nb_increments):
     k = 0
     while j<m:
         for i in range (j*n,(j+1)*n-2,2):
-            Spring_bout_croix_2[time,k,:] = Pt[time-1,i + 1,:]
-            Spring_bout_croix_2[time,k+1,:] = Pt[time-1,i,:]
-            Spring_bout_croix_2[time,k+2,:] = Pt[time-1,i+ 2,:]
-            Spring_bout_croix_2[time,k+3,:] = Pt[time-1,i + 1,:]
+            Spring_bout_croix_2[time,k,:] = Pt[time,i + 1,:]
+            Spring_bout_croix_2[time,k+1,:] = Pt[time,i,:]
+            Spring_bout_croix_2[time,k+2,:] = Pt[time,i+ 2,:]
+            Spring_bout_croix_2[time,k+3,:] = Pt[time,i + 1,:]
             k += 4
         j+=1
 
@@ -373,10 +460,14 @@ def Etat_initial(Pt_ancrage,Pos_repos,Nb_increments,fig) :
     # Pt_ancrage, Pos_repos = Points_ancrage_repos(Nb_increments)
     Pt[0, :, :] = Pos_repos[0, :, :]
 
-    Spring_bout_1, Spring_bout_2 = Spring_bouts(Pt, Pt_ancrage, 1, Nb_increments)
-    Spring_bout_croix_1, Spring_bout_croix_2 = Spring_bouts_croix(Pt, 1, Nb_increments)
-    Spb1, Spb2 = Spring_bout_1[1, :, :], Spring_bout_2[1, :, :]
-    Spbc1, Spbc2 = Spring_bout_croix_1[1, :, :], Spring_bout_croix_2[1, :, :]
+    # Spring_bout_1, Spring_bout_2 = Spring_bouts(Pt, Pt_ancrage, 1, Nb_increments)
+    Spring_bout_1, Spring_bout_2 = Spring_bouts_repos(Pos_repos, Pt_ancrage, 0, Nb_increments)
+
+    # Spring_bout_croix_1, Spring_bout_croix_2 = Spring_bouts_croix(Pt, 1, Nb_increments)
+    Spring_bout_croix_1, Spring_bout_croix_2 = Spring_bouts_croix_repos(Pos_repos, 0, Nb_increments)
+
+    Spb1, Spb2 = Spring_bout_1[0, :, :], Spring_bout_2[0, :, :]
+    Spbc1, Spbc2 = Spring_bout_croix_1[0, :, :], Spring_bout_croix_2[0, :, :]
 
     ax = fig.add_subplot(int(T_total / (2 * dt)), int(T_total / (2 * dt)), 1, projection='3d')
     # ax = fig.add_subplot(1,1, 1, projection='3d')
@@ -494,10 +585,11 @@ for time in range(1, Nb_increments):
     M,F_spring, F_spring_croix, F_masses = Force_calc(Spb1,Spb2,Spbc1,Spbc2,
                                                     Masse_centre, time,Nb_increments)  # utilise Param()
     F_point = Force_point(F_spring, F_spring_croix, F_masses, time, Nb_increments)
+
     for index in range (n*m) :
         accel[time, index, :] = F_point[index,:] / M[index]
-    vitesse[time, :, :] = dt * accel[time, :, :] + vitesse[time - 1, :, :]
-    Pt[time, :, :] = dt * vitesse[time, :, :] + Pt[time - 1, :, :]
+        vitesse[time, index, :] = dt * accel[time, index, :] + vitesse[time - 1, index, :]
+        Pt[time, index, :] = dt * vitesse[time, index, :] + Pt[time - 1, index, :]
 
     Spring_bout_1, Spring_bout_2 = Spring_bouts(Pt, Pt_ancrage, time, Nb_increments)
     Spring_bout_croix_1, Spring_bout_croix_2 = Spring_bouts_croix(Pt, time, Nb_increments)
