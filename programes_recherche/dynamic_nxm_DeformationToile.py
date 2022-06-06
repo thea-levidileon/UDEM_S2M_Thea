@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 # from IPython import embed
 # from mpl_toolkits import mplot3d
 
-n=15 #nombre de mailles sur le grand cote
-m=9#nombre de mailles sur le petit cote
+n=5 #nombre de mailles sur le grand cote
+m=3#nombre de mailles sur le petit cote
 Masse_centre=0
 
 Nb_ressorts=2*n*m+n+m #nombre de ressorts non obliques total dans le modele
@@ -379,18 +379,18 @@ def Force_point(F_spring,F_spring_croix,F_masses,time,Nb_increments) : #--> resu
 
     # - points des coin de la toile : VERIFIE CEST OK
     F_spring_points[0,:]=F_spring[0,:]+\
-                         F_spring[Nb_ressorts_cadre-1,:]+\
-                         F_spring[Nb_ressorts_cadre,:]+ \
-                         F_spring[Nb_ressorts_cadre+Nb_ressorts_horz,:] +\
+                         F_spring[Nb_ressorts_cadre-1,:]-\
+                         F_spring[Nb_ressorts_cadre,:]- \
+                         F_spring[Nb_ressorts_cadre+Nb_ressorts_horz,:] -\
                          F_spring_croix[0,:]# en bas a droite : premier ressort du cadre + dernier ressort du cadre + premiers ressorts horz, vert et croix
     F_spring_points[n-1,:] = F_spring[n-1,:] +\
-                              F_spring[n,:] + \
+                              F_spring[n,:] - \
                               F_spring[ Nb_ressorts_cadre + n - 1,:] + \
-                              F_spring[ Nb_ressorts_cadre + Nb_ressorts_horz + Nb_ressorts_vert-m,:] + \
+                              F_spring[ Nb_ressorts_cadre + Nb_ressorts_horz + Nb_ressorts_vert-m,:] - \
                               F_spring_croix[2*(n-1)-1,:]  # en haut a droite
     F_spring_points[ (m-1)*n,:] = F_spring[ 2*n+m-1,:] +\
                                   F_spring[ 2*n+m,:] + \
-                                  F_spring[ Nb_ressorts_cadre + Nb_ressorts_horz-n,:] + \
+                                  F_spring[ Nb_ressorts_cadre + Nb_ressorts_horz-n,:] - \
                                   F_spring[ Nb_ressorts_cadre + Nb_ressorts_horz + m-1,:] + \
                                   F_spring_croix[ Nb_ressorts_croix - 2*(n-1) +1,:]  # en bas a gauche
     F_spring_points[ m* n-1,:] = F_spring[ n + m - 1,:] + \
@@ -402,10 +402,10 @@ def Force_point(F_spring,F_spring_croix,F_masses,time,Nb_increments) : #--> resu
     # - points du bord de la toile> Pour lordre des termes de la somme, on part du ressort cadre puis sens trigo
             # - cote droit VERIFIE CEST OK
     for i in range (1,n-1):
-        F_spring_points[ i,:] = F_spring[ i,:] + \
-                                F_spring[Nb_ressorts_cadre + Nb_ressorts_horz + m * i,:] + \
-                                F_spring_croix[ 2 * (i - 1) + 1,:] + \
-                                F_spring[ Nb_ressorts_cadre + i,:] + \
+        F_spring_points[ i,:] = F_spring[ i,:] - \
+                                F_spring[Nb_ressorts_cadre + Nb_ressorts_horz + m * i,:] - \
+                                F_spring_croix[ 2 * (i - 1) + 1,:] - \
+                                F_spring[ Nb_ressorts_cadre + i,:] - \
                                 F_spring_croix[ 2 * (i - 1)+2,:] + \
                                 F_spring[Nb_ressorts_cadre + Nb_ressorts_horz + m * (i - 1),:]
             # - cote gauche VERIFIE CEST OK
@@ -415,15 +415,15 @@ def Force_point(F_spring,F_spring_croix,F_masses,time,Nb_increments) : #--> resu
                              F_spring[Nb_ressorts_cadre+Nb_ressorts_horz+(j+1)*m-1,:]+ \
                              F_spring_croix[Nb_ressorts_croix-2*n+1+2*(j+2),:]+\
                              F_spring[Nb_ressorts_cadre+Nb_ressorts_horz-n+j+1,:]+\
-                             F_spring_croix[Nb_ressorts_croix-2*n+2*(j+1),:]+\
+                             F_spring_croix[Nb_ressorts_croix-2*n+2*(j+1),:]-\
                              F_spring[Nb_ressorts_cadre+Nb_ressorts_horz+(j+2)*m-1,:]
         j+=1
 
             # - cote haut VERIFIE CEST OK
     j=0
     for i in range (2*n-1,(m-1)*n,n) :
-        F_spring_points[ i,:]= F_spring[ n+1+j,:] + \
-                               F_spring[ Nb_ressorts_cadre + i,:] + \
+        F_spring_points[ i,:]= F_spring[ n+1+j,:] - \
+                               F_spring[ Nb_ressorts_cadre + i,:] - \
                                F_spring_croix[(j+2)*(n-1)*2-1,:]+\
                                F_spring[Nb_ressorts_cadre + Nb_ressorts_horz + (Nb_ressorts_vert+1) - (m-j),:] +\
                                F_spring_croix[(j+1)*(n-1)*2-2,:]+\
@@ -431,12 +431,12 @@ def Force_point(F_spring,F_spring_croix,F_masses,time,Nb_increments) : #--> resu
         j+=1
             # - cote bas VERIFIE CEST OK
     j=0
-    for i in range (n,(m-2)*n+1,n) :
+    for i in range (n,(m-2)*n+1,n) :s
         F_spring_points[ i,:] = F_spring[ Nb_ressorts_cadre-(2+j),:] + \
                                 F_spring[ Nb_ressorts_cadre + n*j,:]+\
-                                F_spring_croix[1+2*(n-1)*j,:]+\
-                                F_spring[Nb_ressorts_cadre+Nb_ressorts_horz+j+1,:]+\
-                                F_spring[2*(n-1)*(j+1),:]+\
+                                F_spring_croix[1+2*(n-1)*j,:]-\
+                                F_spring[Nb_ressorts_cadre+Nb_ressorts_horz+j+1,:]-\
+                                F_spring[2*(n-1)*(j+1),:]-\
                                 F_spring[ Nb_ressorts_cadre + n*(j+1),:]
         j+=1
 
@@ -446,10 +446,10 @@ def Force_point(F_spring,F_spring_croix,F_masses,time,Nb_increments) : #--> resu
     for j in range (1,m-1):
         for i in range (1,n-1) :
             F_spring_points[j*n+i,:]=F_spring[Nb_ressorts_cadre+(j-1)*n+i,:] + \
-                                     F_spring_croix[2*j*(n-1) - 2*n + 3 + 2*i,:]+\
-                                     F_spring[Nb_ressorts_cadre+Nb_ressorts_horz + m*i + j,:]+\
-                                     F_spring_croix[j*2*(n-1) + i*2,:]+\
-                                     F_spring[ Nb_ressorts_cadre + j * n + i,:]+\
+                                     F_spring_croix[2*j*(n-1) - 2*n + 3 + 2*i,:]-\
+                                     F_spring[Nb_ressorts_cadre+Nb_ressorts_horz + m*i + j,:]-\
+                                     F_spring_croix[j*2*(n-1) + i*2,:]-\
+                                     F_spring[ Nb_ressorts_cadre + j * n + i,:]-\
                                      F_spring_croix[j*2*(n-1) + i*2 -1,:]+\
                                      F_spring[Nb_ressorts_cadre+Nb_ressorts_horz + m*(i-1) + j,:]+\
                                      F_spring_croix[j*2*(n-1) -2*n + 2*i,:]
@@ -581,7 +581,7 @@ fig = plt.figure()
 
 Spb1,Spb2,Spbc1,Spbc2 = Etat_initial(Pt_ancrage,Pos_repos,Nb_increments,fig) #--> actualise Pt[0,:,:] et fait l'affichage
 
-for time in range(1, Nb_increments):
+for time in range(1, 2):
     M,F_spring, F_spring_croix, F_masses = Force_calc(Spb1,Spb2,Spbc1,Spbc2,
                                                     Masse_centre, time,Nb_increments)  # utilise Param()
     F_point = Force_point(F_spring, F_spring_croix, F_masses, time, Nb_increments)
