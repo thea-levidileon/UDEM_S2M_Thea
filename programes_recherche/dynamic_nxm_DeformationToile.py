@@ -11,11 +11,12 @@ import matplotlib.pyplot as plt
 # from os.path import dirname, join as pjoin
 # import scipy.io as sio
 # from IPython import embed
-# from mpl_toolkits import mplot3d
+from mpl_toolkits import mplot3d
+import matplotlib.animation as animation
 
-n=5 #nombre de mailles sur le grand cote
-m=3#nombre de mailles sur le petit cote
-Masse_centre=0
+n=9 #nombre de mailles sur le grand cote
+m=5#nombre de mailles sur le petit cote
+Masse_centre=150
 
 Nb_ressorts=2*n*m+n+m #nombre de ressorts non obliques total dans le modele
 Nb_ressorts_cadre=2*n+2*m #nombre de ressorts entre le cadre et la toile
@@ -76,7 +77,7 @@ def Param () :
     k7 = 2 / (m - 1) * 23308.23
     k8 = 2 * k7
     # k_croix=(k6**2+k8**2)**(1/2)
-    k_croix = 10000  # je sais pas
+    k_croix = 3000  # je sais pas
 
     # longueurs au repos trouvees a partir du programme 5x3:
     l_repos_bord = 0.240 - 0.045233
@@ -125,7 +126,7 @@ def Param () :
     l_repos = np.append(l_bord_tab, l_repos)
 
     # CALCUL DES MASSES : (pas pris en compte la masse ajoutee par lathlete)
-    mcoin = 1.803  # masse d'un point se trouvant sur un coin de la toile
+    mcoin = 1.803 # masse d'un point se trouvant sur un coin de la toile
     mpetit = 0.5 * 5.695 / (m - 2)  # masse d'un point se trouvant sur le petit cote de la toile
     mgrand = 0.5 * 9.707 / (n - 2)  # masse d'un point se trouvant sur le grand cote de la toile
     mmilieu = 3 * 0.650 / ((n - 2) * (m - 2))  # masse d'un point se trouvant au milieu de la toile
@@ -313,44 +314,8 @@ def Spring_bouts_croix(Pt,time,Nb_increments):
 
     return Spring_bout_croix_1,Spring_bout_croix_2
 
-
-def ancien_Force_calc () :
-    a=1
-
-# def Force_calc(Pt,Masse_centre,time,Nb_increments):
-#
-#     Pt_ancrage,Pos_repos=Points_ancrage_repos(time,Nb_increments)
-#     k, l_repos, M, k_croix_tab, l_repos_croix = Param()
-#
-#     Spring_bout_1, Spring_bout_2, Spring_bout_1_repos, Spring_bout_2_repos, Spring_bout_croix_1, Spring_bout_croix_2, \
-#     Spring_bout_croix_1_repos, Spring_bout_croix_2_repos = Calc_Spring_bouts (Pos_repos,Pt,Pt_ancrage,time,Nb_increments)
-#
-#     F_spring = np.zeros((Nb_increments,3, Nb_ressorts))
-#     Vect_unit_dir_F[time] = (Spring_bout_2[time] - Spring_bout_1[time]) / np.linalg.norm(Spring_bout_2[time] - Spring_bout_1[time])
-#     for ispring in range(Nb_ressorts):
-#         F_spring[time,:, ispring] = Vect_unit_dir_F[time,ispring, :] * k[ispring] * (
-#                 np.linalg.norm(Spring_bout_2[time,ispring, :] - Spring_bout_1[time,ispring, :]) - l_repos[time,ispring])
-#
-#     F_spring_croix = np.zeros((Nb_increments,3, Nb_ressorts_croix))
-#     Vect_unit_dir_F_croix = (Spring_bout_croix_2[time] - Spring_bout_croix_1[time]) /np.linalg.norm(Spring_bout_croix_2[time] - Spring_bout_croix_1[time])
-#     for ispring in range(Nb_ressorts_croix):
-#         F_spring_croix[time,:, ispring] = Vect_unit_dir_F_croix[time,ispring, :] * k_croix_tab[ispring] * (
-#                 np.linalg.norm(Spring_bout_croix_2[time,ispring, :] - Spring_bout_croix_1[time,ispring, :]) - l_repos_croix[ispring])
-#
-#     F_masses = np.zeros((3, n*m))
-#     F_masses[2, :] = - M * 9.81
-#
-#   return M,F_spring, F_spring_croix,F_masses
-    return a
-
-
 def Force_calc(Spring_bout_1,Spring_bout_2,Spring_bout_croix_1,Spring_bout_croix_2,Masse_centre,time,Nb_increments):
-
-    # Pt_ancrage,Pos_repos=Points_ancrage_repos(time,Nb_increments)
     k, l_repos, M, k_croix_tab, l_repos_croix = Param()
-
-    # Spring_bout_1, Spring_bout_2, Spring_bout_1_repos, Spring_bout_2_repos, Spring_bout_croix_1, Spring_bout_croix_2, \
-    # Spring_bout_croix_1_repos, Spring_bout_croix_2_repos = Calc_Spring_bouts (Pos_repos,Pt,Pt_ancrage,time,Nb_increments)
 
     F_spring = np.zeros((Nb_ressorts,3))
     Vect_unit_dir_F = (Spring_bout_2 - Spring_bout_1) / np.linalg.norm(Spring_bout_2 - Spring_bout_1)
@@ -364,11 +329,10 @@ def Force_calc(Spring_bout_1,Spring_bout_2,Spring_bout_croix_1,Spring_bout_croix
         F_spring_croix[ispring,:] = Vect_unit_dir_F_croix[ispring, :] * k_croix_tab[ispring] * (
                 np.linalg.norm(Spring_bout_croix_2[ispring, :] - Spring_bout_croix_1[ispring, :]) - l_repos_croix[ispring])
 
-    F_masses = np.zeros((n*m,3))
-    F_masses[:,2] = - M * 9.81
+    F_masses = np.zeros((n * m, 3))
+    F_masses[:, 2] = - M * 9.81
 
-    return M,F_spring, F_spring_croix,F_masses
-
+    return M, F_spring, F_spring_croix, F_masses
 
 def Force_point(F_spring,F_spring_croix,F_masses,time,Nb_increments) : #--> resultante des forces en chaque point a un instant donne
 
@@ -390,7 +354,7 @@ def Force_point(F_spring,F_spring_croix,F_masses,time,Nb_increments) : #--> resu
                               F_spring_croix[2*(n-1)-1,:]  # en haut a droite
     F_spring_points[ (m-1)*n,:] = F_spring[ 2*n+m-1,:] +\
                                   F_spring[ 2*n+m,:] + \
-                                  F_spring[ Nb_ressorts_cadre + Nb_ressorts_horz-n,:] - \
+                                  F_spring[ Nb_ressorts_cadre + (m-2)*n,:] - \
                                   F_spring[ Nb_ressorts_cadre + Nb_ressorts_horz + m-1,:] + \
                                   F_spring_croix[ Nb_ressorts_croix - 2*(n-1) +1,:]  # en bas a gauche
     F_spring_points[ m* n-1,:] = F_spring[ n + m - 1,:] + \
@@ -431,12 +395,12 @@ def Force_point(F_spring,F_spring_croix,F_masses,time,Nb_increments) : #--> resu
         j+=1
             # - cote bas VERIFIE CEST OK
     j=0
-    for i in range (n,(m-2)*n+1,n) :s
+    for i in range (n,(m-2)*n+1,n) :
         F_spring_points[ i,:] = F_spring[ Nb_ressorts_cadre-(2+j),:] + \
                                 F_spring[ Nb_ressorts_cadre + n*j,:]+\
                                 F_spring_croix[1+2*(n-1)*j,:]-\
                                 F_spring[Nb_ressorts_cadre+Nb_ressorts_horz+j+1,:]-\
-                                F_spring[2*(n-1)*(j+1),:]-\
+                                F_spring_croix[2*(n-1)*(j+1),:]-\
                                 F_spring[ Nb_ressorts_cadre + n*(j+1),:]
         j+=1
 
@@ -453,7 +417,7 @@ def Force_point(F_spring,F_spring_croix,F_masses,time,Nb_increments) : #--> resu
                                      F_spring_croix[j*2*(n-1) + i*2 -1,:]+\
                                      F_spring[Nb_ressorts_cadre+Nb_ressorts_horz + m*(i-1) + j,:]+\
                                      F_spring_croix[j*2*(n-1) -2*n + 2*i,:]
-    F_point=F_masses+F_spring_points
+    F_point=F_masses-F_spring_points
     return F_point
 
 def Etat_initial(Pt_ancrage,Pos_repos,Nb_increments,fig) :
@@ -469,7 +433,7 @@ def Etat_initial(Pt_ancrage,Pos_repos,Nb_increments,fig) :
     Spb1, Spb2 = Spring_bout_1[0, :, :], Spring_bout_2[0, :, :]
     Spbc1, Spbc2 = Spring_bout_croix_1[0, :, :], Spring_bout_croix_2[0, :, :]
 
-    ax = fig.add_subplot(int(T_total / (2 * dt)), int(T_total / (2 * dt)), 1, projection='3d')
+    ax = fig.add_subplot(2, 5, 1, projection='3d')
     # ax = fig.add_subplot(1,1, 1, projection='3d')
     ax.set_box_aspect([1.1, 1.8, 1])
     ax.plot(Pt[0, :, 0], Pt[0, :, 1], Pt[0, :, 2], '.b')
@@ -517,8 +481,11 @@ def Etat_initial(Pt_ancrage,Pos_repos,Nb_increments,fig) :
     #plt.show()
     return Spb1,Spb2,Spbc1,Spbc2
 
-def Affichage(Pt,Pt_ancrage,Spb1,Spb2,Spbc1,Spbc2,time,fig) :
-    ax = fig.add_subplot(int(T_total / (2 * dt)), int(T_total / (2 * dt)), time + 1, projection='3d')
+def Affichage(Pt,Pt_ancrage,Spb1,Spb2,Spbc1,Spbc2,time,Nb_increment,fig) :
+    # ax = fig.add_subplot(int(T_total / (2 * dt)), int(T_total / (2 * dt)), time + 1, projection='3d')
+    ax = fig.add_subplot(2, 5, time //100 + 1, projection='3d')
+
+
     ax.set_box_aspect([1.1, 1.8, 1])
     ax.plot(Pt[time, :, 0], Pt[time, :, 1], Pt[time, :, 2], '.b')
     ax.plot(Pt_ancrage[time, :, 0], Pt_ancrage[time, :, 1], Pt_ancrage[time, :, 2], '.k')
@@ -537,37 +504,67 @@ def Affichage(Pt,Pt_ancrage,Spb1,Spb2,Spbc1,Spbc2,time,fig) :
         c = np.append(c, Spb2[j, 2])
 
         ax.plot3D(a, b, c, '-r', linewidth=1)
+    #
+    # for j in range(Nb_ressorts_croix):
+    #     a = []
+    #     a = np.append(a, Spbc1[j, 0])
+    #     a = np.append(a, Spbc2[j, 0])
+    #
+    #     b = []
+    #     b = np.append(b, Spbc1[j, 1])
+    #     b = np.append(b, Spbc2[j, 1])
+    #
+    #     c = []
+    #     c = np.append(c, Spbc1[j, 2])
+    #     c = np.append(c, Spbc2[j, 2])
+    #
+    #     ax.plot3D(a, b, c, '-g', linewidth=1)
+    #
+    # for j in range(n*m):
+    #     a = []
+    #     a = np.append(a, Pt[time,j, 0])
+    #     a = np.append(a, Pt[time,j, 0]+accel[time,j,0]/1000)
+    #
+    #     b = []
+    #     b = np.append(b, Pt[time,j, 1])
+    #     b = np.append(b, Pt[time,j, 1]+accel[time,j,1]/1000)
+    #
+    #     c = []
+    #     c = np.append(c, Pt[time,j, 2])
+    #     c = np.append(c, Pt[time,j, 2]+accel[time,j,2]/1000)
+    #
+    #     ax.plot3D(a, b, c, '-b', linewidth=1)
 
-    for j in range(Nb_ressorts_croix):
-        a = []
-        a = np.append(a, Spbc1[j, 0])
-        a = np.append(a, Spbc2[j, 0])
-
-        b = []
-        b = np.append(b, Spbc1[j, 1])
-        b = np.append(b, Spbc2[j, 1])
-
-        c = []
-        c = np.append(c, Spbc1[j, 2])
-        c = np.append(c, Spbc2[j, 2])
-
-        ax.plot3D(a, b, c, '-g', linewidth=1)
-
-    plt.title('temps = ' + str(time) + ' s')
-    # ax.axes.set_xlim3d(left=-2, right=2)
-    # ax.axes.set_ylim3d(bottom=-3, top=3)
-    # ax.axes.set_zlim3d(bottom=-1000, top=1000)
+    plt.title('temps = ' + str(time*dt) + ' s')
+    ax.axes.set_xlim3d(left=-2, right=2)
+    ax.axes.set_ylim3d(bottom=-3, top=3)
+    # ax.axes.set_zlim3d(bottom=-0.1, top=0.1)
     ax.set_xlabel('x (m)')
     ax.set_ylabel('y (m)')
     ax.set_zlabel('z (m)')
     # plt.show()
 
+# def Update():
+#
+#
+# def Animation(time,Pt,fig) :
+#     frame_range=[0,Nb_increments-1]
+#     animation.FuncAnimation(fig, Update, frames=frame_range[1] - frame_range[0], blit=False)
+#     point = [ax.plot(0, 0, 0, '.') for i in range(n*m)]
+#     for time in range (Nb_increments) :
+#         point[time][0]
+
+
+
 ###############################################################################
 
 #PARAMETRES POUR LA DYNAMIQUE :
-dt = 1
-T_total = 4
-Nb_increments=int(T_total/dt)
+dt = 0.002
+# T_total = 0.1
+Nb_increments=1000
+T_total=Nb_increments*dt
+
+# Nb_increments=int(T_total/dt)
 
 Pt = np.zeros((Nb_increments, n*m,3))
 vitesse = np.zeros((Nb_increments, n*m,3))
@@ -581,9 +578,10 @@ fig = plt.figure()
 
 Spb1,Spb2,Spbc1,Spbc2 = Etat_initial(Pt_ancrage,Pos_repos,Nb_increments,fig) #--> actualise Pt[0,:,:] et fait l'affichage
 
-for time in range(1, 2):
+for time in range(1, Nb_increments):
     M,F_spring, F_spring_croix, F_masses = Force_calc(Spb1,Spb2,Spbc1,Spbc2,
                                                     Masse_centre, time,Nb_increments)  # utilise Param()
+    # M, F_spring4, F_spring_croix4, F_masses4=Force_calc_centre(Masse_centre)
     F_point = Force_point(F_spring, F_spring_croix, F_masses, time, Nb_increments)
 
     for index in range (n*m) :
@@ -596,7 +594,20 @@ for time in range(1, 2):
     Spb1, Spb2 = Spring_bout_1[time, :, :], Spring_bout_2[time, :, :]
     Spbc1, Spbc2 = Spring_bout_croix_1[time, :, :], Spring_bout_croix_2[time, :, :]
 
-    Affichage(Pt, Pt_ancrage, Spb1, Spb2, Spbc1, Spbc2, time, fig)
+    if (time)%100==0 :
+        Affichage(Pt, Pt_ancrage, Spb1, Spb2, Spbc1, Spbc2, time, Nb_increments, fig)
+
+# fig_1 = plt.figure()
+# ax = p3.Axes3D(fig_1)ax.axes.set_xlim3d(left=-2, right=2)
+# ax.axes.set_ylim3d(bottom=-3, top=3)
+# ax.axes.set_zlim3d(bottom=-1.5, top=0.5)
+# ax.set_xlabel('x (m)')
+# ax.set_ylabel('y (m)')
+# ax.set_zlabel('z (m)')
+#
+# ax.set_box_aspect([1.1, 1.8, 1])
+# frame_range = [0, Nb_increments - 1]
+# animation.FuncAnimation(fig_1, Update, frames=frame_range[1] - frame_range[0], blit=False)
 
 
 plt.show()
