@@ -202,7 +202,6 @@ def ForceEquilib_centre_func(Pt, k, M, l_repos, Masse_centre,k_croix_tab,l_repos
 
     return func
 
-
 def Force_calc(Masse_centre):
 
     def Optimisation_toile(Masse_centre, Pt_ancrage, k, M, l_repos, Pos_repos,k_croix_tab,l_repos_croix):

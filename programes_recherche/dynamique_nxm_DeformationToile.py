@@ -20,7 +20,7 @@ affichage=1
 
 n=15 #nombre de mailles sur le grand cote
 m=9 #nombre de mailles sur le petit cote
-Masse_centre=150
+Masse_centre=80
 
 Nb_ressorts=2*n*m+n+m #nombre de ressorts non obliques total dans le modele
 Nb_ressorts_cadre=2*n+2*m #nombre de ressorts entre le cadre et la toile
@@ -484,9 +484,9 @@ def Etat_initial(Pt_ancrage,Pos_repos,Nb_increments,fig) :
     #plt.show()
     return Spb1,Spb2,Spbc1,Spbc2
 
-def Affichage(Pt,Pt_ancrage,Spb1,Spb2,Spbc1,Spbc2,time,x,Nb_increment,fig) :
+def Affichage(Pt,Pt_ancrage,Spb1,Spb2,Spbc1,Spbc2,time,Nb_increment,fig) :
     # ax = fig.add_subplot(int(T_total / (2 * dt)), int(T_total / (2 * dt)), time + 1, projection='3d')
-    ax = fig.add_subplot(2, 5, time //(100*x) + 1, projection='3d')
+    ax = fig.add_subplot(2, 5, time //(100) + 1, projection='3d')
 
 
     ax.set_box_aspect([1.1, 1.8, 1])
@@ -589,8 +589,8 @@ def Anim(Pt,Nb_increments) :
 
 ###############################################################################
 #PARAMETRES POUR LA DYNAMIQUE :
-dt = 0.002
-Nb_increments=2000
+dt = 0.002 #fonctionne pour dt<0.004
+Nb_increments=1000
 T_total=Nb_increments*dt
 
 Pt = np.zeros((Nb_increments, n*m,3))
@@ -621,7 +621,7 @@ if affichage == 0 :
         Spbc1, Spbc2 = Spring_bout_croix_1[time, :, :], Spring_bout_croix_2[time, :, :]
 
         if (time)%100==0 :
-            Affichage(Pt, Pt_ancrage, Spb1, Spb2, Spbc1, Spbc2, time, x,Nb_increments, fig)
+            Affichage(Pt, Pt_ancrage, Spb1, Spb2, Spbc1, Spbc2, time, Nb_increments, fig)
     plt.show()
 
 #############################################################################################################
@@ -676,8 +676,8 @@ if affichage==1 :
 
 
     animate=animation.FuncAnimation(fig_1, update, frames=frame_range[1] - frame_range[0], fargs=(Pt_tot, markers_point), blit=False)
-    output_file_name = 'simulation.mp4'
-    animate.save(output_file_name, fps=20, extra_args=['-vcodec', 'libx264'])
+    # output_file_name = 'simulation.mp4'
+    # animate.save(output_file_name, fps=20, extra_args=['-vcodec', 'libx264'])
 
     plt.show()
 

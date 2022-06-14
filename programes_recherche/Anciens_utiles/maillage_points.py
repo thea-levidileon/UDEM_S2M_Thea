@@ -64,7 +64,6 @@ for j in range (5,13) :
 
 #Affichage :
 
-
 #trace du contour du cadre :
 plt.plot([l+l_ressort,l+l_ressort],[-L-L_ressort,L+L_ressort],color='red')
 plt.plot([-l-l_ressort,-l-l_ressort],[-L-L_ressort,L+L_ressort],color='red')
