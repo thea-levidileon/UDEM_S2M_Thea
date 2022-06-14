@@ -32,12 +32,6 @@ for i in range (4) :
         ana[index, int(longueur / 2)]))
 
 
-
-
-
-
-
-
     # parametres des plateformes
     # Nb_platform=c3d_experimental['parameters']['FORCE_PLATFORM']['USED']['value'][0]
     # platform_type=c3d_experimental['parameters']['FORCE_PLATFORM']['TYPE']['value']
@@ -45,4 +39,4 @@ for i in range (4) :
     # platform_corners=c3d_experimental['parameters']['FORCE_PLATFORM']['CORNERS']['value'] #position des coins de chaeu plateforme : [xyz,quel coin,quelle plateforme] --> pb plateforme 1
     # platform_origin=c3d_experimental['parameters']['FORCE_PLATFORM']['ORIGIN']['value']
     # platform_channel=c3d_experimental['parameters']['FORCE_PLATFORM']['CHANNEL']['value'] #dit quel chanel contient quelle donnee
-    # platform_calmatrix=c3d_experimental['parameters']['FORCE_PLATFORM']['CAL_MATRIX']['value'] #matrice de calibration : il n'y en a pas
+    platform_calmatrix=c3d_experimental['parameters']['FORCE_PLATFORM']['CAL_MATRIX']['value'] #matrice de calibration : il n'y en a pas

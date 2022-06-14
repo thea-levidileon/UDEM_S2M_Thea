@@ -414,6 +414,7 @@ def Force_calc(Masse_centre):
             c = np.append(c, Spring_bout_croix_2_repos[j, 2])
 
             ax.plot3D(a, b, c, '-g',linewidth=1)
+
         plt.title('Trampoline sans sollicitation exterieure, maille ' +str(m)+'x'+str(n))
         ax.set_xlabel('x (m)')
         ax.set_ylabel('y (m)')

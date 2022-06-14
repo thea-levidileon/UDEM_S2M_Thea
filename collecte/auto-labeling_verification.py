@@ -62,7 +62,6 @@ ax.set_zlim3d([0, np.nanmax(c3d_experimental['data']['points'][2, :, :])])
 # colors_colormap = sns.color_palette(palette="viridis", n_colors=c3d_experimental['data']['points'][:, 0:ind_stop, frame_range[0]:frame_range[1]].shape[1])
 colors_colormap = sns.color_palette(palette="viridis", n_colors=c3d_experimental['data']['points'][:, 0:ind_stop, frame_range[0]:frame_range[1]].shape[1])
 
-# colors = [[] for i in range(c3d_experimental['data']['points'][0:ind_stop, :, frame_range[0]:frame_range[1]].shape[1])]
 colors = [[] for i in range(c3d_experimental['data']['points'][:, 0:ind_stop, frame_range[0]:frame_range[1]].shape[1])]
 for i in range(c3d_experimental['data']['points'][:, 0:ind_stop, frame_range[0]:frame_range[1]].shape[1]):
 # for i in range(ind_stop):
@@ -71,14 +70,12 @@ for i in range(c3d_experimental['data']['points'][:, 0:ind_stop, frame_range[0]:
     col_2 = colors_colormap[i][2]
     colors[i] = (col_0, col_1, col_2)
 
-# markers_point = [ax.plot(0, 0, 0, '.', color=colors[i]) for i in range(c3d_experimental['data']['points'][:, 0:ind_stop, frame_range[0]:frame_range[1]].shape[1])]
 markers_point = [ax.plot(0, 0, 0, '.', color=colors[i]) for i in range(c3d_experimental['data']['points'][:, 0:ind_stop, frame_range[0]:frame_range[1]].shape[1])]
 
-# anim = animation.FuncAnimation(fig_1, update, frames=frame_range[1]-frame_range[0], fargs=(c3d_experimental['data']['points'][:, 0:ind_stop, frame_range[0]:frame_range[1]], markers_point), blit=False)
 anim = animation.FuncAnimation(fig_1, update, frames=frame_range[1]-frame_range[0], fargs=(c3d_experimental['data']['points'][:, 0:ind_stop, frame_range[0]:frame_range[1]], markers_point), blit=False)
 
 
-anim.save(output_file_name, fps=20, extra_args=['-vcodec', 'libx264'])
+# anim.save(output_file_name, fps=20, extra_args=['-vcodec', 'libx264'])
 
 plt.show()
 
