@@ -123,7 +123,7 @@ def Each_platform(ana,ana1,ana2,longueur) :
           [0.0111,-0.0063,0.8371,-0.004,0.0014,0.0120],
           [-4.4537,3.1811,-0.2881,0.9530,-1.2086,-4.5486],
           [-0.1021,0.0049,-0.0019,-0.0139,0.2170,-0.0016],
-          [-0.1899,-0.0652,0.0083,0.0113,0.0341,0.1495]]
+          [-0.1899,-0.0652,0.0083,0.0113,0.0341,0.1495]] #c'est la bonne matrice pour PF4 (vieille S2M)
 
     # M4[0] = np.multiply(M4[0],-8)
     # M4[1]=np.multiply(M4[1],3.5)
@@ -224,9 +224,6 @@ def Courbes(ana,ana1,ana2,index,longueur) :
 
     plt.show()
 
-# plt.figure()
-# plt.plot(c3d_experimental['data']['analogs'][0,-6:,:].T)
-# plt.show()
 
 ind_stop=Named_pins(c3d_experimental)
 longueur,ana,ana1,ana2=Affichage(c3d_experimental,ind_stop)
